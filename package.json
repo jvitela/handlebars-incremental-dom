@@ -1,0 +1,19 @@
+{
+  "name": "handlebars-incremental-dom",
+  "version": "0.1.0",
+  "description": "Handlebars to Incremental DOM transpiler",
+  "main": "index.js",
+  "dependencies": {
+    "lodash": "^4.15.0",
+    "parse5": "^2.1.5"
+  },
+  "devDependencies": {
+    "incremental-dom": "^0.4.1",
+    "webpack": "^1.13.2"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "jvitela",
+  "license": "MIT"
+}
