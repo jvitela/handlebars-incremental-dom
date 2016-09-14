@@ -62,11 +62,15 @@ Serializer.escapeString = function (str, attrMode) {
 
 //API
 Serializer.prototype.serialize = function () {
+  var childNodes = this.treeAdapter.getChildNodes(this.startNode);
+  if (!childNodes) {
+    return '';
+  }
   this.id = Date.now();
   this.elemCount = 0;
   this.html = 'var val;\n';
   this.html += "data = (data && data.root) ? data : { 'id': (data && data.id), 'data': data, 'root': data };\n";
-  this._serializeChildNodes(this.startNode);
+  this._serializeChildNodes(childNodes);
   return this.html;
 };
 
@@ -84,13 +88,13 @@ Serializer.prototype._buildParsingError = function(msg, token) {
 };
 
 
-Serializer.prototype._serializeChildNodes = function (parentNode) {
-  var i, l, currentNode, childNodes;
-  childNodes = this.treeAdapter.getChildNodes(parentNode);
+Serializer.prototype._serializeChildNodes = function (childNodes) {
+  var i, l, currentNode;
 
   if (!childNodes) {
     return;
   }
+
   for (i = 0, l = childNodes.length; i < l; i++) {
     currentNode = childNodes[i];
 
@@ -119,7 +123,7 @@ Serializer.prototype._serializeChildNodes = function (parentNode) {
 };
 
 Serializer.prototype._serializeMustacheTag = function (node) {
-  var lastTag, inlineHelpers, childNodesHolder, name, tn = this.treeAdapter.getTagName(node);
+  var lastTag, inlineHelpers, childNodesHolder, childNodes, name, tn = this.treeAdapter.getTagName(node);
 
   inlineHelpers = ['if', 'unless'];
   name = '"' + tn + '"';
@@ -162,7 +166,7 @@ Serializer.prototype._serializeMustacheTag = function (node) {
           throw this._buildParsingError("Helpers are not allowed inside elements, found helper '" + tn + "'");
           // this.html += 'hbs.helper(' + name + ', data, ';
           // this._serializeMustacheAttrs(node);
-          // this.html += ', idom)';        
+          // this.html += ')';        
           break;
       }
     }
@@ -179,7 +183,7 @@ Serializer.prototype._serializeMustacheTag = function (node) {
         default: 
           this.html += 'hbs.helper(' + name + ', data, ';
           this._serializeMustacheAttrs(node);
-          this.html += ', idom)';
+          this.html += ')';
           break;        
       }
     }
@@ -208,7 +212,7 @@ Serializer.prototype._serializeMustacheTag = function (node) {
   }
 
   else if (node.mustache.type == TMUSTACHE.PARTIAL) {
-    this.html += 'hbs.partial("' + tn + '", data, idom);\n';
+    this.html += 'hbs.partial("' + tn + '", data);\n';
   }
 
   else {
@@ -222,7 +226,8 @@ Serializer.prototype._serializeMustacheTag = function (node) {
   }
 
   childNodesHolder = (tn === $.TEMPLATE && ns === NS.HTML) ? this.treeAdapter.getTemplateContent(node) : node;
-  this._serializeChildNodes(childNodesHolder);
+  childNodes = this.treeAdapter.getChildNodes(childNodesHolder);
+  this._serializeChildNodes(childNodes);
 }
 
 Serializer.prototype._serializeMustacheExpr = function(path, def) {
@@ -233,15 +238,37 @@ Serializer.prototype._serializeMustacheExpr = function(path, def) {
 }
 
 Serializer.prototype._serializeWebComponent = function (node) {
-  var tn = this.treeAdapter.getTagName(node),
-      attrs = this.treeAdapter.getAttrList(node);
+  var tn         = this.treeAdapter.getTagName(node),
+      attrs      = this.treeAdapter.getAttrList(node),
+      childNodes = this.treeAdapter.getChildNodes(node);
 
-  this.html += 'hbs.component("' + tn + '", data, idom, {\n';
+  var grpAttrs = this._groupAttrsByType(attrs);
+  this.html += 'idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', []);';
+  // BLOCK elements without dynamic attributes
+  if (grpAttrs.dynamic.length < 1) {
+    this.html += 'idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', ';
+    this._serializeConstAttributes(grpAttrs.static);
+    this.html += ');\n';
+  }
+  // BLOCK Element with dynamic attributes
+  else {
+    this.html += 'idom.elementOpenStart("' + tn + '", ' + this._getId(tn) + ', ';
+    this._serializeConstAttributes(grpAttrs.static);
+    this.html += ');\n';
+    this._serializeElementDynamicAttrs(grpAttrs.dynamic);
+    this.html += 'idom.elementOpenEnd("' + tn + '");\n';
+  }
+
+  this.html += 'hbs.component("' + tn + '", data, {\n';
   this.html += '"id": data.id,\n';
   this._serializeComponentAttributes(attrs);
-  this.html += '}, function(data, idom, hbs) {\n';
-  this._serializeChildNodes(node);
+  if (childNodes && childNodes.length > 0) {
+    this.html += '}, function(data) {\n';
+    this._serializeChildNodes(childNodes);
+  }
   this.html += '});\n';
+
+  this.html += 'idom.elementClose("' + tn + '");';
 }
 
 Serializer.prototype._serializeElement = function (node) {
@@ -282,7 +309,8 @@ Serializer.prototype._serializeVoidElement = function(node, tn, ns, attrs) {
   // var childNodesHolder = tn === $.TEMPLATE && ns === NS.HTML ?
   //     this.treeAdapter.getTemplateContent(node) :
   //     node;
-  // this._serializeChildNodes(childNodesHolder);  
+  // var childNodes = this.treeAdapter.getChildNodes(childNodesHolder);    
+  // this._serializeChildNodes(childNodes);
 };
 
 Serializer.prototype._serializeBlockElement = function(node, tn, ns, attrs) {
@@ -315,8 +343,9 @@ Serializer.prototype._serializeBlockElement = function(node, tn, ns, attrs) {
   var childNodesHolder = tn === $.TEMPLATE && ns === NS.HTML ?
       this.treeAdapter.getTemplateContent(node) :
       node;
+  var childNodes = this.treeAdapter.getChildNodes(childNodesHolder);
 
-  this._serializeChildNodes(childNodesHolder);
+  this._serializeChildNodes(childNodes);
   this.html += 'idom.elementClose("' + tn + '");\n';  
 }
 

@@ -132,13 +132,16 @@ module.exports = {
     }
   },
 
-  component: function(tagName, data, idom, props, tmpl) {
-    var context   = this.context(props, data);
-    context._body = tmpl;
-    this._components[tagName](context); //, idom, this);
+  component: function(tagName, data, props, tmpl) { //, idom) {
+    var context;
+    if (typeof this._components[tagName] === 'function') {
+      context = this.context(props, data);
+      context._body = tmpl;
+      this._components[tagName](context); //, idom, this);
+    }
   },
 
-  partial: function(name, data, idom) {
+  partial: function(name, data) { //, idom) {
     var context, props;
     // Special case for components
     if (name === '@content' && typeof data._body === "function") {
@@ -146,7 +149,7 @@ module.exports = {
       context = data._parent;
       props   = data._props;
       context._props = data; // TODO: check if we need to clone
-      data._body(context, idom, this);
+      data._body(context); //, idom, this);
       data._props = props;
     }
     else if (typeof this._partials[name] === "function") { 
