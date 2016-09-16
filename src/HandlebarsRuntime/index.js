@@ -60,9 +60,10 @@ function get(path, context, defaultValue) {
 }
 
 module.exports = {
-  _helpers: {},
+  _helpers:    {},
   _components: {},
-  _partials: {},
+  _partials:   {},
+  _fragments:  {},
 
   context: function(data, _parent, index, last) {
     return getContext(data, _parent, index, last);
@@ -132,13 +133,21 @@ module.exports = {
     }
   },
 
-  component: function(tagName, data, props, tmpl) { //, idom) {
-    var context;
-    if (typeof this._components[tagName] === 'function') {
-      context = this.context(props, data);
-      context._body = tmpl;
-      this._components[tagName](context); //, idom, this);
+  getComponent: function(tagName, id, fn) {
+    if (typeof fn !== 'function') {
+      return null;
     }
+    return {
+      render: fn //, idom, this); 
+    };
+  },
+
+  component: function(tagName, id, data, props) { //, idom) {
+    var context, view;
+    context = this.context(props, data);
+    context._body = this._fragments[id] || null;
+    view = this.getComponent(tagName, id, this._components[tagName]);
+    view && view.render(context);
   },
 
   partial: function(name, data) { //, idom) {
@@ -154,6 +163,16 @@ module.exports = {
     }
     else if (typeof this._partials[name] === "function") { 
       this._partials[name](data); //, idom, this);
+    }
+  },
+
+  registerFragments: function(fragments) {
+    var key;
+    for (key in fragments) {
+      if (!fragments.hasOwnProperty(key)) {
+        continue;
+      }
+      this._fragments[key] = fragments[key];
     }
   },
 

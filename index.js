@@ -24,18 +24,23 @@ module.exports = {
    */
   compile: function(template, opts) {
     opts = opts || {};
-    var patch, view, factory;
+    var patch, view, factory, fragments;
     var parser     = new Parser();
     var fragment   = parser.parseFragment(template, null);
     var serializer = new Serializer(fragment);
     var src        = serializer.serialize();
 
     if (opts.asString) {
-      return 'function(data) { ' + src + ' };';
+      return src;
     }
 
-    factory = new Function("idom", "hbs", "return function(data) { " +src + " }");
-    view    = factory(idom, hbs);
+    factory   = new Function("idom", "hbs", "return function(data) { " + src.main + " }");
+    view      = factory(idom, hbs);
+
+    if (src.fragments) {
+      fragments = new Function("idom", "hbs", "return " + src.fragments + ";");
+      hbs.registerFragments(fragments(idom, hbs));
+    }
 
     patch = function(node, data) { idom.patch(node, view, data); };
     patch.view = view;

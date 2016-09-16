@@ -40,6 +40,7 @@ var Serializer = module.exports = function (node, options) {
     this.startNode = node;
     this.mustacheStack = [];
     this.elemCount = 0;
+    this.components = [];
 };
 
 // NOTE: exported as static method for the testing purposes
@@ -71,13 +72,32 @@ Serializer.prototype.serialize = function () {
   this.html = 'var val;\n';
   this.html += "data = (data && data.root) ? data : { 'id': (data && data.id), 'data': data, 'root': data };\n";
   this._serializeChildNodes(childNodes);
-  return this.html;
+  
+  var components = _.map(this.components, function(cmp) { return '"' + cmp.id + '": ' + cmp.fn });
+
+  return {
+    'fragments': components.length ? ('{\n' + components.join(',\n') + '\n}') : null,
+    'main':      this.html
+  };
 };
 
 //Internals
 Serializer.prototype._getId = function(tn) {
-  return 'hbs.id(data, "' + this.id + ':' + tn + ':' + (++this.elemCount) + '")';
+  return 'hbs.id(data, "' + tn + ':' + this.id + ':' + (++this.elemCount) + '")';
 };
+
+Serializer.prototype._getComponentId = function(tn) {
+  return tn + ':' + this.id + ':' + (this.components.length + 1);
+}
+
+Serializer.prototype._addComponentContent = function(id, childNodes) {
+  var html  = this.html;
+  this.html = 'function(data) {\n';
+  this._serializeChildNodes(childNodes);
+  this.html += '}';
+  this.components.push({ id:id, fn:this.html });
+  this.html = html;
+}
 
 Serializer.prototype._buildParsingError = function(msg, token) {
   var err = new SyntaxError(msg);
@@ -242,33 +262,34 @@ Serializer.prototype._serializeWebComponent = function (node) {
       attrs      = this.treeAdapter.getAttrList(node),
       childNodes = this.treeAdapter.getChildNodes(node);
 
-  var grpAttrs = this._groupAttrsByType(attrs);
-  this.html += 'idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', []);';
-  // BLOCK elements without dynamic attributes
-  if (grpAttrs.dynamic.length < 1) {
-    this.html += 'idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', ';
-    this._serializeConstAttributes(grpAttrs.static);
-    this.html += ');\n';
-  }
-  // BLOCK Element with dynamic attributes
-  else {
-    this.html += 'idom.elementOpenStart("' + tn + '", ' + this._getId(tn) + ', ';
-    this._serializeConstAttributes(grpAttrs.static);
-    this.html += ');\n';
-    this._serializeElementDynamicAttrs(grpAttrs.dynamic);
-    this.html += 'idom.elementOpenEnd("' + tn + '");\n';
-  }
+  // var grpAttrs = this._groupAttrsByType(attrs);
+  // // BLOCK elements without dynamic attributes
+  // if (grpAttrs.dynamic.length < 1) {
+  //   this.html += 'idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', ';
+  //   this._serializeConstAttributes(grpAttrs.static);
+  //   this.html += ');\n';
+  // }
+  // // BLOCK Element with dynamic attributes
+  // else {
+  //   this.html += 'idom.elementOpenStart("' + tn + '", ' + this._getId(tn) + ', ';
+  //   this._serializeConstAttributes(grpAttrs.static);
+  //   this.html += ');\n';
+  //   this._serializeElementDynamicAttrs(grpAttrs.dynamic);
+  //   this.html += 'idom.elementOpenEnd("' + tn + '");\n';
+  // }
 
-  this.html += 'hbs.component("' + tn + '", data, {\n';
+  var id = this._getComponentId(tn);
+  this.html += 'hbs.component("' + tn + '", "' + id + '", data, {\n';
   this.html += '"id": data.id,\n';
   this._serializeComponentAttributes(attrs);
-  if (childNodes && childNodes.length > 0) {
-    this.html += '}, function(data) {\n';
-    this._serializeChildNodes(childNodes);
-  }
   this.html += '});\n';
 
-  this.html += 'idom.elementClose("' + tn + '");';
+  if (childNodes && childNodes.length > 0) {
+    this._addComponentContent(id, childNodes);
+  }
+  // this.html += ');\n';
+
+  // this.html += 'idom.elementClose("' + tn + '");';
 }
 
 Serializer.prototype._serializeElement = function (node) {
