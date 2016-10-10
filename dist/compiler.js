@@ -56,17 +56,8 @@
 	    Parser     = __webpack_require__(57);
 
 	module.exports = {
-	  registerComponent: function() {
-	    hbs.registerComponent.apply(hbs, arguments);
-	  },
-
-	  registerHelper: function() {
-	    hbs.registerHelper.apply(hbs, arguments);
-	  },
-
-	  registerPartial: function() {
-	    hbs.registerPartial.apply(hbs, arguments);
-	  },
+	  handlebars:     hbs,
+	  incrementalDom: idom,
 
 	  /**
 	   * Compile a mustache template into incremental-dom code
@@ -76,23 +67,27 @@
 	   */
 	  compile: function(template, opts) {
 	    opts = opts || {};
-	    var patch, view, factory;
+	    var patch, updt, factory, fragments;
 	    var parser     = new Parser();
 	    var fragment   = parser.parseFragment(template, null);
 	    var serializer = new Serializer(fragment);
 	    var src        = serializer.serialize();
 
 	    if (opts.asString) {
-	      return 'function(data) { ' + src + ' };';
+	      return src;
 	    }
 
-	    factory = new Function("idom", "hbs", "return function(data) { " +src + " }");
-	    view    = factory(idom, hbs);
+	    factory   = new Function("idom", "hbs", "return function(data) { " + src.main + " }");
+	    updt      = factory(idom, hbs);
 
-	    patch = function(node, data) { idom.patch(node, view, data); };
-	    patch.view = view;
+	    if (src.fragments) {
+	      fragments = new Function("idom", "hbs", "return " + src.fragments + ";");
+	      hbs.registerFragments(fragments(idom, hbs));
+	    }
 
-	    return patch;
+	    patch = function(node, data) { idom.patch(node, updt, data); };
+
+	    return {"patch": patch, "update": updt};
 	  }
 	}
 
@@ -1175,13 +1170,12 @@
 /***/ function(module, exports) {
 
 	function getContext(data, _parent, index, last) {
-	  var result = { 
-	    "id":      (data && data.id), 
-	    "root":    _parent.root, 
-	    "_parent": _parent, 
-	    "_body":   _parent._body,
-	    // "_props":  _parent._props,
-	    "data":    data 
+	  var result = {
+	    "id":      data && data.id,
+	    "root":    _parent.root  || data, 
+	    "_parent": _parent       || null, 
+	    "_body":   _parent._body || null,
+	    "data":    data // Allow this to be undefined
 	  };
 
 	  if (index !== undefined) {
@@ -1233,13 +1227,23 @@
 	        break;
 	    }
 	  }
+
+	  if (typeof result.data === 'function') {
+	    result.data = result.data.bind((result._parent || result.root).data);
+	  }
+
 	  return result.data !== undefined ? result.data : defaultValue;
 	}
 
+	function trigger(method, object /* ... */) {
+	  return (object && typeof object[method] === 'function' ? object[method].apply(object, Array.prototype.slice.call(arguments, 2)) : null);
+	}
+
 	module.exports = {
-	  _helpers: {},
-	  _components: {},
-	  _partials: {},
+	  _helpers:    {},
+	  // _components: {},
+	  _partials:   {},
+	  _fragments:  {},
 
 	  context: function(data, _parent, index, last) {
 	    return getContext(data, _parent, index, last);
@@ -1309,28 +1313,106 @@
 	    }
 	  },
 
-	  component: function(tagName, data, idom, props, tmpl) {
-	    var context   = this.context(props, data);
-	    context._body = tmpl;
-	    this._components[tagName](context); //, idom, this);
+	  /**
+	   * Handles the behaviour for components
+	   * @param  object el    The DOM Element to be updated
+	   * @param  string cid   The Component's instance cid
+	   * @param  object data  The parent Context
+	   * @param  object props The properties to be updated in the component
+	   */
+	  component: function(el, cid, data, props) {
+	    var context, part, frag, ctrl, that = this;
+
+	    part = this._partials[el.tagName.toLowerCase()];
+
+	    if (!part) {
+	      return;
+	    }
+
+	    frag = this._fragments[cid] || null;
+	    ctrl = this.getViewController(el, cid, props);
+
+	    if (ctrl) {
+	      this.renderComponent("update", el, ctrl, data, part, frag);
+	      // Set a render method the controller can call to update itself
+	      ctrl.render = function() {
+	        that.renderComponent("patch", el, this, data, part, frag);
+	        return this;
+	      }
+	    }
+	    else {
+	      context = this.context(props, data);
+	      context._body = frag;
+	      part.update(context);
+	    }
 	  },
 
-	  partial: function(name, data, idom) {
-	    var context;
+	  /**
+	   * Render the component
+	   * @param  string method The render method "update" or "patch"
+	   * @param  object el     The DOM Element
+	   * @param  object ctrl   The View Controller instance
+	   * @param  object data   The parent Context
+	   * @param  object part   The partial to render
+	   * @param  object frag   The body partial fragment
+	   */
+	  renderComponent: function(method, el, ctrl, data, part, frag) {
+	    var context, model;
+
+	    if (typeof part[method] !== 'function') {
+	      return;
+	    }
+
+	    model   = (trigger("getState", ctrl) || ctrl);
+	    context = this.context(model, data);
+	    context._body = frag;
+
+	    trigger("componentWillUpdate", ctrl, el);
+	    if (method === "patch") {
+	      part.patch(el, context);
+	    }
+	    else if (method === "update") {
+	      part.update(context);
+	    }
+	    trigger("componentDidUpdate", ctrl, el);    
+	  },
+
+	  /**
+	   * Creates the view controller instance if none exists or returns the current one.
+	   * @param  object el    The DOM Element associated to the view-controller
+	   * @param  string cid   The instance Creation ID
+	   * @param  object props The properties to set or update into the instance
+	   * @return object,null  The instance object or null if none
+	   */
+	  getViewController: function(el, cid, props) {
+	    return null;
+	  },
+
+	  partial: function(name, data) {
+	    var context, props, part = this._partials[name];
+
 	    // Special case for components
 	    if (name === '@content' && typeof data._body === "function") {
 	      // The components content is always executed in the parent's context
 	      context = data._parent;
-	      context._props = data;
-	      data._body(context, idom, this);
+	      props   = data._props;  // Store previous _props 
+	      context._props = data;  // TODO: check if we need to clone
+	      data._body(context);    // Call the body partial
+	      data._props = props;    // Restore the previous _props
 	    }
-	    else if (typeof this._partials[name] === "function") { 
-	      this._partials[name](data); //, idom, this);
+	    else if (part && typeof part.update === "function") {
+	      part.update(data); // Execute the partial
 	    }
 	  },
 
-	  registerComponent: function(tagName, fn) {
-	    this._components[tagName] = fn && fn.view;
+	  registerFragments: function(fragments) {
+	    var key;
+	    for (key in fragments) {
+	      if (!fragments.hasOwnProperty(key)) {
+	        continue;
+	      }
+	      this._fragments[key] = fragments[key];
+	    }
 	  },
 
 	  registerHelper: function(name, fn) {
@@ -1338,7 +1420,7 @@
 	  },
 
 	  registerPartial: function(name, fn) {
-	   this._partials[name] = fn && fn.view;
+	   this._partials[name] = fn;
 	  }
 	};
 
@@ -1389,6 +1471,7 @@
 	    this.startNode = node;
 	    this.mustacheStack = [];
 	    this.elemCount = 0;
+	    this.components = [];
 	};
 
 	// NOTE: exported as static method for the testing purposes
@@ -1411,18 +1494,41 @@
 
 	//API
 	Serializer.prototype.serialize = function () {
+	  var childNodes = this.treeAdapter.getChildNodes(this.startNode);
+	  if (!childNodes) {
+	    return '';
+	  }
 	  this.id = Date.now();
 	  this.elemCount = 0;
 	  this.html = 'var val;\n';
 	  this.html += "data = (data && data.root) ? data : { 'id': (data && data.id), 'data': data, 'root': data };\n";
-	  this._serializeChildNodes(this.startNode);
-	  return this.html;
+	  this._serializeChildNodes(childNodes);
+	  
+	  var components = _.map(this.components, function(cmp) { return '"' + cmp.id + '": ' + cmp.fn });
+
+	  return {
+	    'fragments': components.length ? ('{\n' + components.join(',\n') + '\n}') : null,
+	    'main':      this.html
+	  };
 	};
 
 	//Internals
 	Serializer.prototype._getId = function(tn) {
-	  return 'hbs.id(data, "' + this.id + ':' + tn + ':' + (++this.elemCount) + '")';
+	  return 'hbs.id(data, "' + tn + ':' + this.id + ':' + (++this.elemCount) + '")';
 	};
+
+	Serializer.prototype._getComponentId = function(tn) {
+	  return tn + ':' + this.id + ':' + (this.components.length + 1);
+	}
+
+	Serializer.prototype._addComponentContentTemplate = function(id, childNodes) {
+	  var html  = this.html;
+	  this.html = 'function(data) {\n';
+	  this._serializeChildNodes(childNodes);
+	  this.html += '}';
+	  this.components.push({ id:id, fn:this.html });
+	  this.html = html;
+	}
 
 	Serializer.prototype._buildParsingError = function(msg, token) {
 	  var err = new SyntaxError(msg);
@@ -1433,13 +1539,13 @@
 	};
 
 
-	Serializer.prototype._serializeChildNodes = function (parentNode) {
-	  var i, l, currentNode, childNodes;
-	  childNodes = this.treeAdapter.getChildNodes(parentNode);
+	Serializer.prototype._serializeChildNodes = function (childNodes) {
+	  var i, l, currentNode;
 
 	  if (!childNodes) {
 	    return;
 	  }
+
 	  for (i = 0, l = childNodes.length; i < l; i++) {
 	    currentNode = childNodes[i];
 
@@ -1468,7 +1574,7 @@
 	};
 
 	Serializer.prototype._serializeMustacheTag = function (node) {
-	  var lastTag, inlineHelpers, childNodesHolder, name, tn = this.treeAdapter.getTagName(node);
+	  var lastTag, inlineHelpers, childNodesHolder, childNodes, name, tn = this.treeAdapter.getTagName(node);
 
 	  inlineHelpers = ['if', 'unless'];
 	  name = '"' + tn + '"';
@@ -1511,7 +1617,7 @@
 	          throw this._buildParsingError("Helpers are not allowed inside elements, found helper '" + tn + "'");
 	          // this.html += 'hbs.helper(' + name + ', data, ';
 	          // this._serializeMustacheAttrs(node);
-	          // this.html += ', idom)';        
+	          // this.html += ')';        
 	          break;
 	      }
 	    }
@@ -1528,7 +1634,7 @@
 	        default: 
 	          this.html += 'hbs.helper(' + name + ', data, ';
 	          this._serializeMustacheAttrs(node);
-	          this.html += ', idom)';
+	          this.html += ')';
 	          break;        
 	      }
 	    }
@@ -1557,7 +1663,7 @@
 	  }
 
 	  else if (node.mustache.type == TMUSTACHE.PARTIAL) {
-	    this.html += 'hbs.partial("' + tn + '", data, idom);\n';
+	    this.html += 'hbs.partial("' + tn + '", data);\n';
 	  }
 
 	  else {
@@ -1571,7 +1677,8 @@
 	  }
 
 	  childNodesHolder = (tn === $.TEMPLATE && ns === NS.HTML) ? this.treeAdapter.getTemplateContent(node) : node;
-	  this._serializeChildNodes(childNodesHolder);
+	  childNodes = this.treeAdapter.getChildNodes(childNodesHolder);
+	  this._serializeChildNodes(childNodes);
 	}
 
 	Serializer.prototype._serializeMustacheExpr = function(path, def) {
@@ -1581,18 +1688,52 @@
 	  this.html += 'hbs.get(' + path + ', data' + def + ')';
 	}
 
+	/**
+	 * Serialize Web Component
+	 * @param  object node The AST node to serialize
+	 */
 	Serializer.prototype._serializeWebComponent = function (node) {
-	  var tn = this.treeAdapter.getTagName(node),
-	      attrs = this.treeAdapter.getAttrList(node);
+	  var tn         = this.treeAdapter.getTagName(node),
+	      attrs      = this.treeAdapter.getAttrList(node),
+	      childNodes = this.treeAdapter.getChildNodes(node);
 
-	  this.html += 'hbs.component("' + tn + '", data, idom, {\n';
+	  var grpAttrs = this._groupAttrsByType(attrs);
+	  var cid      = this._getComponentId(tn);
+
+	  // grpAttrs.static.push({ name:'data-' + tn + '-cid', value: cid });
+	  
+	  // BLOCK elements without dynamic attributes
+	  // if (grpAttrs.dynamic.length < 1) {
+	    this.html += 'val = idom.elementOpen("' + tn + '", "' + cid + '", ';
+	    this._serializeConstAttributes(grpAttrs.static);
+	    this.html += ');\n';
+	  // }
+	  // BLOCK Element with dynamic attributes
+	  // else {
+	  //   this.html += 'idom.elementOpenStart("' + tn + '", "' + cid + '", ';
+	  //   this._serializeConstAttributes(grpAttrs.static);
+	  //   this.html += ');\n';
+	  //   this._serializeElementDynamicAttrs(grpAttrs.dynamic);
+	  //   this.html += 'val = idom.elementOpenEnd("' + tn + '");\n';
+	  // }
+
+	  var cid = this._getComponentId(tn);
+	  this.html += 'hbs.component(val, "' + cid + '", data, {\n';
 	  this.html += '"id": data.id,\n';
 	  this._serializeComponentAttributes(attrs);
-	  this.html += '}, function(data, idom, hbs) {\n';
-	  this._serializeChildNodes(node);
 	  this.html += '});\n';
+
+	  if (childNodes && childNodes.length > 0) {
+	    this._addComponentContentTemplate(cid, childNodes);
+	  }
+
+	  this.html += 'idom.elementClose("' + tn + '");\n';
 	}
 
+	/**
+	 * Serialize Element
+	 * @param  object node The AST node to serialize
+	 */
 	Serializer.prototype._serializeElement = function (node) {
 	    var tn = this.treeAdapter.getTagName(node),
 	        ns = this.treeAdapter.getNamespaceURI(node),
@@ -1631,7 +1772,8 @@
 	  // var childNodesHolder = tn === $.TEMPLATE && ns === NS.HTML ?
 	  //     this.treeAdapter.getTemplateContent(node) :
 	  //     node;
-	  // this._serializeChildNodes(childNodesHolder);  
+	  // var childNodes = this.treeAdapter.getChildNodes(childNodesHolder);    
+	  // this._serializeChildNodes(childNodes);
 	};
 
 	Serializer.prototype._serializeBlockElement = function(node, tn, ns, attrs) {
@@ -1664,8 +1806,9 @@
 	  var childNodesHolder = tn === $.TEMPLATE && ns === NS.HTML ?
 	      this.treeAdapter.getTemplateContent(node) :
 	      node;
+	  var childNodes = this.treeAdapter.getChildNodes(childNodesHolder);
 
-	  this._serializeChildNodes(childNodesHolder);
+	  this._serializeChildNodes(childNodes);
 	  this.html += 'idom.elementClose("' + tn + '");\n';  
 	}
 

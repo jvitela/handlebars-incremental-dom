@@ -90,7 +90,7 @@ Serializer.prototype._getComponentId = function(tn) {
   return tn + ':' + this.id + ':' + (this.components.length + 1);
 }
 
-Serializer.prototype._addComponentContent = function(id, childNodes) {
+Serializer.prototype._addComponentContentTemplate = function(id, childNodes) {
   var html  = this.html;
   this.html = 'function(data) {\n';
   this._serializeChildNodes(childNodes);
@@ -257,41 +257,52 @@ Serializer.prototype._serializeMustacheExpr = function(path, def) {
   this.html += 'hbs.get(' + path + ', data' + def + ')';
 }
 
+/**
+ * Serialize Web Component
+ * @param  object node The AST node to serialize
+ */
 Serializer.prototype._serializeWebComponent = function (node) {
   var tn         = this.treeAdapter.getTagName(node),
       attrs      = this.treeAdapter.getAttrList(node),
       childNodes = this.treeAdapter.getChildNodes(node);
 
-  // var grpAttrs = this._groupAttrsByType(attrs);
-  // // BLOCK elements without dynamic attributes
+  var grpAttrs = this._groupAttrsByType(attrs);
+  var cid      = this._getComponentId(tn);
+
+  // grpAttrs.static.push({ name:'data-' + tn + '-cid', value: cid });
+  
+  // BLOCK elements without dynamic attributes
   // if (grpAttrs.dynamic.length < 1) {
-  //   this.html += 'idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', ';
-  //   this._serializeConstAttributes(grpAttrs.static);
-  //   this.html += ');\n';
+    this.html += 'val = idom.elementOpen("' + tn + '", "' + cid + '", ';
+    this._serializeConstAttributes(grpAttrs.static);
+    this.html += ');\n';
   // }
-  // // BLOCK Element with dynamic attributes
+  // BLOCK Element with dynamic attributes
   // else {
-  //   this.html += 'idom.elementOpenStart("' + tn + '", ' + this._getId(tn) + ', ';
+  //   this.html += 'idom.elementOpenStart("' + tn + '", "' + cid + '", ';
   //   this._serializeConstAttributes(grpAttrs.static);
   //   this.html += ');\n';
   //   this._serializeElementDynamicAttrs(grpAttrs.dynamic);
-  //   this.html += 'idom.elementOpenEnd("' + tn + '");\n';
+  //   this.html += 'val = idom.elementOpenEnd("' + tn + '");\n';
   // }
 
-  var id = this._getComponentId(tn);
-  this.html += 'hbs.component("' + tn + '", "' + id + '", data, {\n';
+  var cid = this._getComponentId(tn);
+  this.html += 'hbs.component(val, "' + cid + '", data, {\n';
   this.html += '"id": data.id,\n';
   this._serializeComponentAttributes(attrs);
   this.html += '});\n';
 
   if (childNodes && childNodes.length > 0) {
-    this._addComponentContent(id, childNodes);
+    this._addComponentContentTemplate(cid, childNodes);
   }
-  // this.html += ');\n';
 
-  // this.html += 'idom.elementClose("' + tn + '");';
+  this.html += 'idom.elementClose("' + tn + '");\n';
 }
 
+/**
+ * Serialize Element
+ * @param  object node The AST node to serialize
+ */
 Serializer.prototype._serializeElement = function (node) {
     var tn = this.treeAdapter.getTagName(node),
         ns = this.treeAdapter.getNamespaceURI(node),

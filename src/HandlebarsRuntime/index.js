@@ -1,10 +1,10 @@
 function getContext(data, _parent, index, last) {
-  var result = { 
-    "id":      (data && data.id), 
-    "root":    _parent.root, 
-    "_parent": _parent, 
-    "_body":   _parent._body,
-    "data":    data 
+  var result = {
+    "id":      data && data.id,
+    "root":    _parent.root  || data, 
+    "_parent": _parent       || null, 
+    "_body":   _parent._body || null,
+    "data":    data // Allow this to be undefined
   };
 
   if (index !== undefined) {
@@ -56,12 +56,21 @@ function get(path, context, defaultValue) {
         break;
     }
   }
+
+  if (typeof result.data === 'function') {
+    result.data = result.data.bind((result._parent || result.root).data);
+  }
+
   return result.data !== undefined ? result.data : defaultValue;
+}
+
+function trigger(method, object /* ... */) {
+  return (object && typeof object[method] === 'function' ? object[method].apply(object, Array.prototype.slice.call(arguments, 2)) : null);
 }
 
 module.exports = {
   _helpers:    {},
-  _components: {},
+  // _components: {},
   _partials:   {},
   _fragments:  {},
 
@@ -133,36 +142,95 @@ module.exports = {
     }
   },
 
-  getComponent: function(tagName, id, fn) {
-    if (typeof fn !== 'function') {
-      return null;
+  /**
+   * Handles the behaviour for components
+   * @param  object el    The DOM Element to be updated
+   * @param  string cid   The Component's instance cid
+   * @param  object data  The parent Context
+   * @param  object props The properties to be updated in the component
+   */
+  component: function(el, cid, data, props) {
+    var context, part, frag, ctrl, that = this;
+
+    part = this._partials[el.tagName.toLowerCase()];
+
+    if (!part) {
+      return;
     }
-    return {
-      render: fn //, idom, this); 
-    };
+
+    frag = this._fragments[cid] || null;
+    ctrl = this.getViewController(el, cid, props);
+
+    if (ctrl) {
+      this.renderComponent("update", el, ctrl, data, part, frag);
+      // Set a render method the controller can call to update itself
+      ctrl.render = function() {
+        that.renderComponent("patch", el, this, data, part, frag);
+        return this;
+      }
+    }
+    else {
+      context = this.context(props, data);
+      context._body = frag;
+      part.update(context);
+    }
   },
 
-  component: function(tagName, id, data, props) { //, idom) {
-    var context, view;
-    context = this.context(props, data);
-    context._body = this._fragments[id] || null;
-    view = this.getComponent(tagName, id, this._components[tagName]);
-    view && view.render(context);
+  /**
+   * Render the component
+   * @param  string method The render method "update" or "patch"
+   * @param  object el     The DOM Element
+   * @param  object ctrl   The View Controller instance
+   * @param  object data   The parent Context
+   * @param  object part   The partial to render
+   * @param  object frag   The body partial fragment
+   */
+  renderComponent: function(method, el, ctrl, data, part, frag) {
+    var context, model;
+
+    if (typeof part[method] !== 'function') {
+      return;
+    }
+
+    model   = (trigger("getState", ctrl) || ctrl);
+    context = this.context(model, data);
+    context._body = frag;
+
+    trigger("componentWillUpdate", ctrl, el);
+    if (method === "patch") {
+      part.patch(el, context);
+    }
+    else if (method === "update") {
+      part.update(context);
+    }
+    trigger("componentDidUpdate", ctrl, el);    
   },
 
-  partial: function(name, data) { //, idom) {
-    var context, props;
+  /**
+   * Creates the view controller instance if none exists or returns the current one.
+   * @param  object el    The DOM Element associated to the view-controller
+   * @param  string cid   The instance Creation ID
+   * @param  object props The properties to set or update into the instance
+   * @return object,null  The instance object or null if none
+   */
+  getViewController: function(el, cid, props) {
+    return null;
+  },
+
+  partial: function(name, data) {
+    var context, props, part = this._partials[name];
+
     // Special case for components
     if (name === '@content' && typeof data._body === "function") {
       // The components content is always executed in the parent's context
       context = data._parent;
-      props   = data._props;
-      context._props = data; // TODO: check if we need to clone
-      data._body(context); //, idom, this);
-      data._props = props;
+      props   = data._props;  // Store previous _props 
+      context._props = data;  // TODO: check if we need to clone
+      data._body(context);    // Call the body partial
+      data._props = props;    // Restore the previous _props
     }
-    else if (typeof this._partials[name] === "function") { 
-      this._partials[name](data); //, idom, this);
+    else if (part && typeof part.update === "function") {
+      part.update(data); // Execute the partial
     }
   },
 
@@ -176,15 +244,11 @@ module.exports = {
     }
   },
 
-  registerComponent: function(tagName, fn) {
-    this._components[tagName] = fn && fn.view;
-  },
-
   registerHelper: function(name, fn) {
    this._helpers[name] = fn;
   },
 
   registerPartial: function(name, fn) {
-   this._partials[name] = fn && fn.view;
+   this._partials[name] = fn;
   }
 };

@@ -4,17 +4,8 @@ var idom       = require('incremental-dom'),
     Parser     = require('./src/Parser');
 
 module.exports = {
-  registerComponent: function() {
-    hbs.registerComponent.apply(hbs, arguments);
-  },
-
-  registerHelper: function() {
-    hbs.registerHelper.apply(hbs, arguments);
-  },
-
-  registerPartial: function() {
-    hbs.registerPartial.apply(hbs, arguments);
-  },
+  handlebars:     hbs,
+  incrementalDom: idom,
 
   /**
    * Compile a mustache template into incremental-dom code
@@ -24,7 +15,7 @@ module.exports = {
    */
   compile: function(template, opts) {
     opts = opts || {};
-    var patch, view, factory, fragments;
+    var patch, updt, factory, fragments;
     var parser     = new Parser();
     var fragment   = parser.parseFragment(template, null);
     var serializer = new Serializer(fragment);
@@ -35,16 +26,15 @@ module.exports = {
     }
 
     factory   = new Function("idom", "hbs", "return function(data) { " + src.main + " }");
-    view      = factory(idom, hbs);
+    updt      = factory(idom, hbs);
 
     if (src.fragments) {
       fragments = new Function("idom", "hbs", "return " + src.fragments + ";");
       hbs.registerFragments(fragments(idom, hbs));
     }
 
-    patch = function(node, data) { idom.patch(node, view, data); };
-    patch.view = view;
+    patch = function(node, data) { idom.patch(node, updt, data); };
 
-    return patch;
+    return {"patch": patch, "update": updt};
   }
 }
