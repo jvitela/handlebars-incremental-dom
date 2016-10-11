@@ -21,7 +21,8 @@ var $ = HTML.TAG_NAMES,
  * @property {TreeAdapter} [treeAdapter=parse5.treeAdapters.default] - Specifies input tree format.
  */
 var DEFAULT_OPTIONS = {
-    treeAdapter: TreeAdapter
+    treeAdapter:            TreeAdapter,
+    renderComponentWrapper: true
 };
 
 //Escaping regexes
@@ -271,23 +272,26 @@ Serializer.prototype._serializeWebComponent = function (node) {
 
   // grpAttrs.static.push({ name:'data-' + tn + '-cid', value: cid });
   
-  // BLOCK elements without dynamic attributes
-  // if (grpAttrs.dynamic.length < 1) {
-    this.html += 'val = idom.elementOpen("' + tn + '", "' + cid + '", ';
-    this._serializeConstAttributes(grpAttrs.static);
-    this.html += ');\n';
-  // }
-  // BLOCK Element with dynamic attributes
-  // else {
-  //   this.html += 'idom.elementOpenStart("' + tn + '", "' + cid + '", ';
-  //   this._serializeConstAttributes(grpAttrs.static);
-  //   this.html += ');\n';
-  //   this._serializeElementDynamicAttrs(grpAttrs.dynamic);
-  //   this.html += 'val = idom.elementOpenEnd("' + tn + '");\n';
-  // }
+  if (this.options.renderComponentWrapper) {
+    // BLOCK elements without dynamic attributes
+    // if (grpAttrs.dynamic.length < 1) {
+      this.html += 'val = idom.elementOpen("' + tn + '", "' + cid + '", ';
+      this._serializeConstAttributes(grpAttrs.static);
+      this.html += ');\n';
+    // }
+    // BLOCK Element with dynamic attributes
+    // else {
+    //   this.html += 'idom.elementOpenStart("' + tn + '", "' + cid + '", ';
+    //   this._serializeConstAttributes(grpAttrs.static);
+    //   this.html += ');\n';
+    //   this._serializeElementDynamicAttrs(grpAttrs.dynamic);
+    //   this.html += 'val = idom.elementOpenEnd("' + tn + '");\n';
+    // }
+  } else {
+    this.html += 'val = null;\n';
+  }
 
-  var cid = this._getComponentId(tn);
-  this.html += 'hbs.component(val, "' + cid + '", data, {\n';
+  this.html += 'hbs.component(val, "' + tn + '", "' + cid + '", data, {\n';
   this.html += '"id": data.id,\n';
   this._serializeComponentAttributes(attrs);
   this.html += '});\n';
@@ -296,7 +300,9 @@ Serializer.prototype._serializeWebComponent = function (node) {
     this._addComponentContentTemplate(cid, childNodes);
   }
 
-  this.html += 'idom.elementClose("' + tn + '");\n';
+  if (this.options.renderComponentWrapper) {
+    this.html += 'idom.elementClose("' + tn + '");\n';
+  }
 }
 
 /**

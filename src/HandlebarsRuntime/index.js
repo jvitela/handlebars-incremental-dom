@@ -149,10 +149,10 @@ module.exports = {
    * @param  object data  The parent Context
    * @param  object props The properties to be updated in the component
    */
-  component: function(el, cid, data, props) {
+  component: function(el, tagName, cid, data, props) {
     var context, part, frag, ctrl, that = this;
 
-    part = this._partials[el.tagName.toLowerCase()];
+    part = this._partials[tagName.toLowerCase()];
 
     if (!part) {
       return;

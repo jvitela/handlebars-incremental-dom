@@ -6,8 +6,14 @@
    */
   QUnit.module('Helpers', {
       beforeEach: function(assert) {
-          hbs = window.HandlebarsIncrementalDom;
+        hbs = window.HandlebarsIncrementalDom.handlebars;
+        hbs.compile = window.HandlebarsIncrementalDom.compile;
       }
+  });
+
+  QUnit.test('init', function(assert) {
+    assert.expect(1);
+    assert.equal('function', typeof hbs.registerHelper, 'registerHelper is available');
   });
 
   QUnit.test('no arguments', function(assert) {

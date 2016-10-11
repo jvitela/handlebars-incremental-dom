@@ -18,7 +18,7 @@ module.exports = {
     var patch, updt, factory, fragments;
     var parser     = new Parser();
     var fragment   = parser.parseFragment(template, null);
-    var serializer = new Serializer(fragment);
+    var serializer = new Serializer(fragment, opts.serializer);
     var src        = serializer.serialize();
 
     if (opts.asString) {
@@ -34,7 +34,12 @@ module.exports = {
     }
 
     patch = function(node, data) { idom.patch(node, updt, data); };
+    view  = {"patch": patch, "update": updt};
 
-    return {"patch": patch, "update": updt};
+    if (typeof opts.name === "string") {
+      hbs.registerPartial(opts.name, view);
+    }
+
+    return view;
   }
 }

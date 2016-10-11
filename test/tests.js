@@ -14,14 +14,16 @@
   });
 
   QUnit.test('can parse static html', function(assert) {
-  	var tmpl   = '<p>Hello World</p>';
-  	var div    = document.createElement('div');   
-  	var render = hbs.compile(tmpl);
+  	var tmpl = '<p>Hello World</p>';
+  	var div  = document.createElement('div');   
+  	var view = hbs.compile(tmpl);
 
-    assert.expect(2);
-    assert.equal(typeof render, 'function', 'compile returns a function.');
+    assert.expect(4);
+    assert.equal(typeof view,        'object',   'compile returns an object.');    
+    assert.equal(typeof view.patch,  'function', 'it has a patch a function.');
+    assert.equal(typeof view.update, 'function', 'it has an update function.');
 
-  	render(div);
+  	view.patch(div);
     assert.equal(tmpl, div.innerHTML);
   });
 
