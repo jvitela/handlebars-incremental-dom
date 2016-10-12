@@ -70,7 +70,6 @@ function trigger(method, object /* ... */) {
 
 module.exports = {
   _helpers:    {},
-  // _components: {},
   _partials:   {},
   _fragments:  {},
 

@@ -6,7 +6,8 @@ var parse5       = require('parse5'),
     doctype      = require('parse5/lib/common/doctype'),
     mergeOptions = require('parse5/lib/common/merge_options'),
     HTML         = require('parse5/lib/common/html'),
-    Lodash       = require('lodash');
+    Lodash       = require('lodash'),
+    SourceMap    = require('source-map');
 
 var _ = Lodash;
 
@@ -22,7 +23,8 @@ var $ = HTML.TAG_NAMES,
  */
 var DEFAULT_OPTIONS = {
     treeAdapter:            TreeAdapter,
-    renderComponentWrapper: true
+    renderComponentWrapper: true,
+    sourceName: 'unknown.js'
 };
 
 //Escaping regexes
@@ -42,6 +44,7 @@ var Serializer = module.exports = function (node, options) {
     this.mustacheStack = [];
     this.elemCount = 0;
     this.components = [];
+    this.location = { line:1, column:1 };
 };
 
 // NOTE: exported as static method for the testing purposes
@@ -68,6 +71,10 @@ Serializer.prototype.serialize = function () {
   if (!childNodes) {
     return '';
   }
+
+  this.srcMapGen = new SourceMap.SourceMapGenerator({ file: this.options.sourceName });
+  this.location = { line:1, column:1 };
+
   this.id = Date.now();
   this.elemCount = 0;
   this.html = 'var val;\n';
@@ -78,7 +85,8 @@ Serializer.prototype.serialize = function () {
 
   return {
     'fragments': components.length ? ('{\n' + components.join(',\n') + '\n}') : null,
-    'main':      this.html
+    'main':      this.html,
+    'map':       this.srcMapGen.toString()
   };
 };
 
@@ -102,15 +110,15 @@ Serializer.prototype._addComponentContentTemplate = function(id, childNodes) {
 
 Serializer.prototype._buildParsingError = function(msg, token) {
   var err = new SyntaxError(msg);
-  err.lineNumber   = 1; // this.lineNumber;
-  err.columnNumber = 1; // this.columnNumber;
+  err.lineNumber   = this.location.line;
+  err.columnNumber = this.location.column;
   err.lineStr      = "";
   return err;
 };
 
 
 Serializer.prototype._serializeChildNodes = function (childNodes) {
-  var i, l, currentNode;
+  var i, l, location, currentNode;
 
   if (!childNodes) {
     return;
@@ -118,6 +126,7 @@ Serializer.prototype._serializeChildNodes = function (childNodes) {
 
   for (i = 0, l = childNodes.length; i < l; i++) {
     currentNode = childNodes[i];
+    location = currentNode.__locationInfo || {};
 
     if (this.treeAdapter.isMustacheNode(currentNode)) {
       this._serializeMustacheTag(currentNode);
@@ -249,6 +258,21 @@ Serializer.prototype._serializeMustacheTag = function (node) {
   childNodesHolder = (tn === $.TEMPLATE && ns === NS.HTML) ? this.treeAdapter.getTemplateContent(node) : node;
   childNodes = this.treeAdapter.getChildNodes(childNodesHolder);
   this._serializeChildNodes(childNodes);
+
+  if (node.__location) {
+    this.srcMapGen.addMapping({
+      generated: {
+        line:   this.location.line++,
+        column: this.location.column
+      },
+      source: this.options.sourceName,
+      original: {
+        line:   node.__location.line,
+        column: node.__location.col
+      },
+      name: tn
+    });    
+  }
 }
 
 Serializer.prototype._serializeMustacheExpr = function(path, def) {

@@ -2,6 +2,7 @@
 
 var mergeOptions = require('parse5/lib/common/merge_options'),
     BaseParser   = require('parse5/lib/parser'),
+    locationInfoMixin = require('parse5/lib/location_info/parser_mixin'),
     Tokenizer    = require('../Tokenizer'),
     TreeAdapter  = require('../TreeAdapter'),
     extend       = require('../Util/extend');
@@ -10,8 +11,8 @@ var HTML = require('parse5/lib/common/html');
 var NS   = HTML.NAMESPACES;
 
 var DEFAULT_OPTIONS = {
-    locationInfo: false,
-    treeAdapter: TreeAdapter
+  locationInfo: false,
+  treeAdapter:  TreeAdapter
 };
 
 /**
@@ -20,8 +21,12 @@ var DEFAULT_OPTIONS = {
  */
 module.exports = extend(BaseParser, {
   constructor: function(options) {
+    options = options || {};
+    options.locationInfo = false; // Make sure the locationInfoMixin plugin is not set on the parent class
     options = mergeOptions(DEFAULT_OPTIONS, options);
     BaseParser.call(this, options);
+    // Set the plugin
+    locationInfoMixin.assign(this);
   },
 
   _bootstrap: function (document, fragmentContext) {
