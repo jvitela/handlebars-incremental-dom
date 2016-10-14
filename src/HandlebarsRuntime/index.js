@@ -81,6 +81,10 @@ module.exports = {
     return data.id !== undefined ? (prefix + ':' + data.id) : null;
   },
 
+  cid: function(data, prefix) {
+    return data.id !== undefined ? (prefix + ':' + data.id + (data.index ? ':' + data.index : '')) : null;
+  },
+
   /**
    * @index
    * @key
@@ -149,7 +153,7 @@ module.exports = {
    * @param  object props The properties to be updated in the component
    */
   component: function(el, tagName, cid, data, props) {
-    var context, part, frag, ctrl, that = this;
+    var context, part, frag, ctrl, that = this, id;
 
     part = this._partials[tagName.toLowerCase()];
 
@@ -158,7 +162,8 @@ module.exports = {
     }
 
     frag = this._fragments[cid] || null;
-    ctrl = this.getViewController(el, cid, props);
+    id   = cid + (data.index !== undefined ? (':' + data.index) : '');
+    ctrl = this.getViewController(el, id, props);
 
     if (ctrl) {
       this.renderComponent("update", el, ctrl, data, part, frag);

@@ -92,11 +92,16 @@ Serializer.prototype.serialize = function () {
 
 //Internals
 Serializer.prototype._getId = function(tn) {
-  return 'hbs.id(data, "' + tn + ':' + this.id + ':' + (++this.elemCount) + '")';
+  var id = tn + ':' + this.id + ':' + (++this.elemCount);
+  return 'hbs.id(data, "' + id + '")';
 };
 
 Serializer.prototype._getComponentId = function(tn) {
-  return tn + ':' + this.id + ':' + (this.components.length + 1);
+  return  (tn + ':' + this.id + ':' + (this.components.length + 1));
+}
+
+Serializer.prototype._getComponentInstanceId = function(tn, cid) {
+  return 'hbs.cid(data, "' + cid + '")';
 }
 
 Serializer.prototype._addComponentContentTemplate = function(id, childNodes) {
@@ -293,13 +298,14 @@ Serializer.prototype._serializeWebComponent = function (node) {
 
   var grpAttrs = this._groupAttrsByType(attrs);
   var cid      = this._getComponentId(tn);
+  // var id       = this._getId(tn);
 
   // grpAttrs.static.push({ name:'data-' + tn + '-cid', value: cid });
-  
+
   if (this.options.renderComponentWrapper) {
     // BLOCK elements without dynamic attributes
     // if (grpAttrs.dynamic.length < 1) {
-      this.html += 'val = idom.elementOpen("' + tn + '", "' + cid + '", ';
+      this.html += 'val = idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', ';
       this._serializeConstAttributes(grpAttrs.static);
       this.html += ');\n';
     // }
@@ -315,8 +321,9 @@ Serializer.prototype._serializeWebComponent = function (node) {
     this.html += 'val = null;\n';
   }
 
+  // ' + this._getComponentInstanceId(tn, cid) + '
   this.html += 'hbs.component(val, "' + tn + '", "' + cid + '", data, {\n';
-  this.html += '"id": data.id,\n';
+  // this.html += '"id": (data && data.id),\n';
   this._serializeComponentAttributes(attrs);
   this.html += '});\n';
 

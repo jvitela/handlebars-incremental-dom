@@ -1246,7 +1246,6 @@
 
 	module.exports = {
 	  _helpers:    {},
-	  // _components: {},
 	  _partials:   {},
 	  _fragments:  {},
 
@@ -1256,6 +1255,10 @@
 
 	  id: function(data, prefix) {
 	    return data.id !== undefined ? (prefix + ':' + data.id) : null;
+	  },
+
+	  cid: function(data, prefix) {
+	    return data.id !== undefined ? (prefix + ':' + data.id + (data.index ? ':' + data.index : '')) : null;
 	  },
 
 	  /**
@@ -1326,7 +1329,7 @@
 	   * @param  object props The properties to be updated in the component
 	   */
 	  component: function(el, tagName, cid, data, props) {
-	    var context, part, frag, ctrl, that = this;
+	    var context, part, frag, ctrl, that = this, id;
 
 	    part = this._partials[tagName.toLowerCase()];
 
@@ -1335,7 +1338,8 @@
 	    }
 
 	    frag = this._fragments[cid] || null;
-	    ctrl = this.getViewController(el, cid, props);
+	    id   = cid + (data.index !== undefined ? (':' + data.index) : '');
+	    ctrl = this.getViewController(el, id, props);
 
 	    if (ctrl) {
 	      this.renderComponent("update", el, ctrl, data, part, frag);
@@ -1528,11 +1532,16 @@
 
 	//Internals
 	Serializer.prototype._getId = function(tn) {
-	  return 'hbs.id(data, "' + tn + ':' + this.id + ':' + (++this.elemCount) + '")';
+	  var id = tn + ':' + this.id + ':' + (++this.elemCount);
+	  return 'hbs.id(data, "' + id + '")';
 	};
 
 	Serializer.prototype._getComponentId = function(tn) {
-	  return tn + ':' + this.id + ':' + (this.components.length + 1);
+	  return  (tn + ':' + this.id + ':' + (this.components.length + 1));
+	}
+
+	Serializer.prototype._getComponentInstanceId = function(tn, cid) {
+	  return 'hbs.cid(data, "' + cid + '")';
 	}
 
 	Serializer.prototype._addComponentContentTemplate = function(id, childNodes) {
@@ -1729,13 +1738,14 @@
 
 	  var grpAttrs = this._groupAttrsByType(attrs);
 	  var cid      = this._getComponentId(tn);
+	  // var id       = this._getId(tn);
 
 	  // grpAttrs.static.push({ name:'data-' + tn + '-cid', value: cid });
 	  
 	  if (this.options.renderComponentWrapper) {
 	    // BLOCK elements without dynamic attributes
 	    // if (grpAttrs.dynamic.length < 1) {
-	      this.html += 'val = idom.elementOpen("' + tn + '", "' + cid + '", ';
+	      this.html += 'val = idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', ';
 	      this._serializeConstAttributes(grpAttrs.static);
 	      this.html += ');\n';
 	    // }
@@ -1751,8 +1761,9 @@
 	    this.html += 'val = null;\n';
 	  }
 
+	  // ' + this._getComponentInstanceId(tn, cid) + '
 	  this.html += 'hbs.component(val, "' + tn + '", "' + cid + '", data, {\n';
-	  this.html += '"id": data.id,\n';
+	  // this.html += '"id": (data && data.id),\n';
 	  this._serializeComponentAttributes(attrs);
 	  this.html += '});\n';
 
