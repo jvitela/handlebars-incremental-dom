@@ -1240,10 +1240,6 @@
 	  return result.data !== undefined ? result.data : defaultValue;
 	}
 
-	function trigger(method, object /* ... */) {
-	  return (object && typeof object[method] === 'function' ? object[method].apply(object, Array.prototype.slice.call(arguments, 2)) : null);
-	}
-
 	module.exports = {
 	  _helpers:    {},
 	  _partials:   {},
@@ -1329,7 +1325,7 @@
 	   * @param  object props The properties to be updated in the component
 	   */
 	  component: function(el, tagName, cid, data, props) {
-	    var context, part, frag, ctrl, that = this, id;
+	    var context, part, frag, ctrl, tmpl, mode, hbs = this; /*, id;*/
 
 	    part = this._partials[tagName.toLowerCase()];
 
@@ -1338,16 +1334,17 @@
 	    }
 
 	    frag = this._fragments[cid] || null;
-	    id   = cid + (data.index !== undefined ? (':' + data.index) : '');
-	    ctrl = this.getViewController(el, id, props);
+	    //id   = cid + (data.index !== undefined ? (':' + data.index) : '');
+	    tmpl = function(props) {
+	      hbs.renderComponent(mode, el, props, data, part, frag);
+	    };
+	    ctrl = this.getViewController(el, /*id,*/ props, tmpl);
 
 	    if (ctrl) {
-	      this.renderComponent("update", el, ctrl, data, part, frag);
-	      // Set a render method the controller can call to update itself
-	      ctrl.render = function() {
-	        that.renderComponent("patch", el, this, data, part, frag);
-	        return this;
-	      }
+	      mode = "update";
+	      //this.renderComponent("update", el, ctrl, props, data, part, frag);
+	      ctrl.render();
+	      mode = "patch";
 	    }
 	    else {
 	      context = this.context(props, data);
@@ -1361,29 +1358,27 @@
 	   * @param  string method The render method "update" or "patch"
 	   * @param  object el     The DOM Element
 	   * @param  object ctrl   The View Controller instance
+	   * @param  object props  The data properties send to the view controller, used as fallback in case "getState" is not implemented
 	   * @param  object data   The parent Context
 	   * @param  object part   The partial to render
 	   * @param  object frag   The body partial fragment
 	   */
-	  renderComponent: function(method, el, ctrl, data, part, frag) {
-	    var context, model;
+	  renderComponent: function(method, el, props, data, part, frag) {
+	    var context;
 
 	    if (typeof part[method] !== 'function') {
 	      return;
 	    }
 
-	    model   = (trigger("getState", ctrl) || ctrl);
-	    context = this.context(model, data);
+	    context = this.context(props, data);
 	    context._body = frag;
 
-	    trigger("componentWillUpdate", ctrl, el);
 	    if (method === "patch") {
 	      part.patch(el, context);
 	    }
 	    else if (method === "update") {
 	      part.update(context);
 	    }
-	    trigger("componentDidUpdate", ctrl, el);    
 	  },
 
 	  /**
@@ -1741,7 +1736,7 @@
 	  // var id       = this._getId(tn);
 
 	  // grpAttrs.static.push({ name:'data-' + tn + '-cid', value: cid });
-	  
+
 	  if (this.options.renderComponentWrapper) {
 	    // BLOCK elements without dynamic attributes
 	    // if (grpAttrs.dynamic.length < 1) {
