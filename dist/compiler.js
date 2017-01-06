@@ -77,8 +77,8 @@
 	      return src;
 	    }
 
-	    factory   = new Function("idom", "hbs", "return function(data) { " + src.main + " }");
-	    updt      = factory(idom, hbs);
+	    factory = new Function("idom", "hbs", "return function(data) { " + src.main + " }");
+	    updt    = factory(idom, hbs);
 
 	    if (src.fragments) {
 	      fragments = new Function("idom", "hbs", "return " + src.fragments + ";");
@@ -86,7 +86,10 @@
 	    }
 
 	    patch = function(node, data) { idom.patch(node, updt, data); };
-	    view  = {"patch": patch, "update": updt};
+	    view  = {
+	      "patch":  patch,
+	      "update": updt
+	    };
 
 	    if (typeof opts.name === "string") {
 	      hbs.registerPartial(opts.name, view);
@@ -1325,70 +1328,43 @@
 	   * @param  object props The properties to be updated in the component
 	   */
 	  component: function(el, tagName, cid, data, props) {
-	    var context, part, frag, ctrl, tmpl, mode, hbs = this; /*, id;*/
+	    var partial, template, proxy;
 
-	    part = this._partials[tagName.toLowerCase()];
-
-	    if (!part) {
+	    partial = this._partials[tagName.toLowerCase()];
+	    if (!partial) {
 	      return;
 	    }
 
-	    frag = this._fragments[cid] || null;
-	    //id   = cid + (data.index !== undefined ? (':' + data.index) : '');
-	    tmpl = function(props) {
-	      hbs.renderComponent(mode, el, props, data, part, frag);
+	    template = {
+	      hbs:             this,
+	      ready:           false,
+	      element:         el,
+	      parentContext:   data,
+	      contentTemplate: this._fragments[cid] || null,
+	      mainTemplate:    partial,
+	      render: function(data) {
+	        var context = this.hbs.context(data, this.parentContext);
+	        context._body = this.contentTemplate;
+	        this.ready ? 
+	          this.mainTemplate.patch(this.element, context) :
+	          this.mainTemplate.update(context);
+	      }
 	    };
-	    ctrl = this.getViewController(el, /*id,*/ props, tmpl);
 
-	    if (ctrl) {
-	      mode = "update";
-	      //this.renderComponent("update", el, ctrl, props, data, part, frag);
-	      ctrl.render();
-	      mode = "patch";
-	    }
-	    else {
-	      context = this.context(props, data);
-	      context._body = frag;
-	      part.update(context);
-	    }
-	  },
-
-	  /**
-	   * Render the component
-	   * @param  string method The render method "update" or "patch"
-	   * @param  object el     The DOM Element
-	   * @param  object ctrl   The View Controller instance
-	   * @param  object props  The data properties send to the view controller, used as fallback in case "getState" is not implemented
-	   * @param  object data   The parent Context
-	   * @param  object part   The partial to render
-	   * @param  object frag   The body partial fragment
-	   */
-	  renderComponent: function(method, el, props, data, part, frag) {
-	    var context;
-
-	    if (typeof part[method] !== 'function') {
-	      return;
-	    }
-
-	    context = this.context(props, data);
-	    context._body = frag;
-
-	    if (method === "patch") {
-	      part.patch(el, context);
-	    }
-	    else if (method === "update") {
-	      part.update(context);
-	    }
+	    proxy = this.getComponentProxy(el, props, template);
+	    proxy ? proxy.render() : template.render(props);
+	    template.ready = true;
 	  },
 
 	  /**
 	   * Creates the view controller instance if none exists or returns the current one.
-	   * @param  object el    The DOM Element associated to the view-controller
-	   * @param  string cid   The instance Creation ID
-	   * @param  object props The properties to set or update into the instance
+	   * @param  object el       The DOM Element associated to the view-controller
+	   * @param  object props    The properties to set or update into the instance
+	   * @param  object fnUpdate Update callback
+	   * @param  object fnPatch  Patch callback
 	   * @return object,null  The instance object or null if none
 	   */
-	  getViewController: function(el, cid, props) {
+	  getComponentProxy: function(el, props, template) {
 	    return null;
 	  },
 
