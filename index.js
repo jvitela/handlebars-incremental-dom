@@ -25,8 +25,8 @@ module.exports = {
       return src;
     }
 
-    factory   = new Function("idom", "hbs", "return function(data) { " + src.main + " }");
-    updt      = factory(idom, hbs);
+    factory = new Function("idom", "hbs", "return function(data) { " + src.main + " }");
+    updt    = factory(idom, hbs);
 
     if (src.fragments) {
       fragments = new Function("idom", "hbs", "return " + src.fragments + ";");
@@ -34,7 +34,10 @@ module.exports = {
     }
 
     patch = function(node, data) { idom.patch(node, updt, data); };
-    view  = {"patch": patch, "update": updt};
+    view  = {
+      "patch":  patch,
+      "update": updt
+    };
 
     if (typeof opts.name === "string") {
       hbs.registerPartial(opts.name, view);

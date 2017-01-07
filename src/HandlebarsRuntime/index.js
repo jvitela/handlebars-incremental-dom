@@ -64,10 +64,6 @@ function get(path, context, defaultValue) {
   return result.data !== undefined ? result.data : defaultValue;
 }
 
-function trigger(method, object /* ... */) {
-  return (object && typeof object[method] === 'function' ? object[method].apply(object, Array.prototype.slice.call(arguments, 2)) : null);
-}
-
 module.exports = {
   _helpers:    {},
   _partials:   {},
@@ -153,71 +149,43 @@ module.exports = {
    * @param  object props The properties to be updated in the component
    */
   component: function(el, tagName, cid, data, props) {
-    var context, part, frag, ctrl, that = this, id;
+    var partial, template, proxy;
 
-    part = this._partials[tagName.toLowerCase()];
-
-    if (!part) {
+    partial = this._partials[tagName.toLowerCase()];
+    if (!partial) {
       return;
     }
 
-    frag = this._fragments[cid] || null;
-    id   = cid + (data.index !== undefined ? (':' + data.index) : '');
-    ctrl = this.getViewController(el, id, props);
-
-    if (ctrl) {
-      this.renderComponent("update", el, ctrl, data, part, frag);
-      // Set a render method the controller can call to update itself
-      ctrl.render = function() {
-        that.renderComponent("patch", el, this, data, part, frag);
-        return this;
+    template = {
+      hbs:             this,
+      ready:           false,
+      element:         el,
+      parentContext:   data,
+      contentTemplate: this._fragments[cid] || null,
+      mainTemplate:    partial,
+      render: function(data) {
+        var context = this.hbs.context(data, this.parentContext);
+        context._body = this.contentTemplate;
+        this.ready ? 
+          this.mainTemplate.patch(this.element, context) :
+          this.mainTemplate.update(context);
       }
-    }
-    else {
-      context = this.context(props, data);
-      context._body = frag;
-      part.update(context);
-    }
-  },
+    };
 
-  /**
-   * Render the component
-   * @param  string method The render method "update" or "patch"
-   * @param  object el     The DOM Element
-   * @param  object ctrl   The View Controller instance
-   * @param  object data   The parent Context
-   * @param  object part   The partial to render
-   * @param  object frag   The body partial fragment
-   */
-  renderComponent: function(method, el, ctrl, data, part, frag) {
-    var context, model;
-
-    if (typeof part[method] !== 'function') {
-      return;
-    }
-
-    model   = (trigger("getState", ctrl) || ctrl);
-    context = this.context(model, data);
-    context._body = frag;
-
-    trigger("componentWillUpdate", ctrl, el);
-    if (method === "patch") {
-      part.patch(el, context);
-    }
-    else if (method === "update") {
-      part.update(context);
-    }
-    trigger("componentDidUpdate", ctrl, el);    
+    proxy = this.getComponentProxy(el, props, template);
+    proxy ? proxy.render() : template.render(props);
+    template.ready = true;
   },
 
   /**
    * Creates the view controller instance if none exists or returns the current one.
-   * @param  object el    The DOM Element associated to the view-controller
-   * @param  string cid   The instance Creation ID
-   * @param  object props The properties to set or update into the instance
+   * @param  object el       The DOM Element associated to the view-controller
+   * @param  object props    The properties to set or update into the instance
+   * @param  object fnUpdate Update callback
+   * @param  object fnPatch  Patch callback
    * @return object,null  The instance object or null if none
    */
-  getViewController: function(el, cid, props) {
+  getComponentProxy: function(el, props, template) {
     return null;
   },
 

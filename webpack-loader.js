@@ -3,6 +3,9 @@
 // var loaderUtils = require('loader-utils');
 var HandlebarsIdom = require('./index.js');
 
+/**
+ * Precompiles the templates and register the fragments and partials
+ */
 module.exports = function(source) {
   var path, src  = HandlebarsIdom.compile(source, { asString: true });
 
@@ -11,14 +14,14 @@ module.exports = function(source) {
   // Get the filename
   path = this.resourcePath.split("/").pop().split(".")[0]; // /^([^\/]+\/)+([^\/]+)\.hbs$/g
 
-  return 'var idom  = require("incremental-dom");' +
-         'var hbs   = require("handlebars-incremental-dom/src/HandlebarsRuntime");' + 
-         'var updt  = function(data) {' + src.main + ';};' +
-         'var patch = function patch(node, data) {' +
-         '  idom.patch(node, updt, data);' +
-         '};' +
-         'var part = {"patch": patch, "update": updt};' + 
-         (src.fragments ? 'hbs.registerFragments(' + src.fragments + ');' : '') + 
-         'hbs.registerPartial("' + path + '", part);' + 
-         'module.exports = part;';
+  return 'module.exports = function(idom, hbs) {' +
+         '  this.idom   = idom;' +
+         '  this.hbs    = hbs;' +
+         '  this.update = function(data) {' + src.main + ';};' +
+         '  this.patch  = function patch(node, data) {' +
+         '    idom.patch(node, this.update, data);' +
+         '  };' +
+         (src.fragments ? ('  fragments && hbs.registerFragments(' + src.fragments + ');') : '') +
+         '  hbs.registerPartial("' + path + '", this);' +
+         '};';
 };
