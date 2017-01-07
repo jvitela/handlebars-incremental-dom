@@ -82,4 +82,20 @@
     assert.equal('localhost', renderToString(hbs, template, data), template);
   });
 
+  QUnit.test('special characters', function(assert) {
+    var template, data;
+    assert.expect(3);
+
+    template = '{{test}}';
+    data     = {'test': '&' };
+    assert.equal(renderToString(hbs, template, data), '&amp;', template);
+
+    template = '<span title="{{test}}"></span>';
+    data     = {'test': '&' };
+    assert.equal(renderToString(hbs, template, data), '<span title="&amp;"></span>', template);
+
+    template = '<span data-test="{{test}}"></span>';
+    data     = {'test': '&' };
+    assert.equal(renderToString(hbs, template, data), '<span data-test="&amp;"></span>', template);
+  });
 })(window.QUnit);
