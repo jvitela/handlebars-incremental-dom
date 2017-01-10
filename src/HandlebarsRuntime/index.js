@@ -153,6 +153,7 @@ module.exports = {
 
     partial = this._partials[tagName.toLowerCase()];
     if (!partial) {
+      throw new SyntaxError("Component template not defined for '" + tagName + "'");
       return;
     }
 
