@@ -3,7 +3,7 @@
 
   QUnit.module('Control flow', {
       beforeEach: function(assert) {
-          hbs = window.HandlebarsIncrementalDom;
+        hbs = window.HandlebarsIncrementalDom;
       }
   });
 

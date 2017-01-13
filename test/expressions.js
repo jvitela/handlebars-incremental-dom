@@ -3,7 +3,7 @@
 	
 	QUnit.module('Expressions', {
 		beforeEach: function(assert) {
-			hbs = window.HandlebarsIncrementalDom;
+	    hbs = window.HandlebarsIncrementalDom;
 		}
 	});
 

@@ -1,48 +1,63 @@
-var idom       = require('incremental-dom'),
-    hbs        = require('./src/HandlebarsRuntime'),
-    Serializer = require('./src/Serializer'),
-    Parser     = require('./src/Parser');
+var incrementalDom = require('incremental-dom'),
+    handlebars     = require('./src/HandlebarsRuntime'),
+    Serializer     = require('./src/Serializer'),
+    Parser         = require('./src/Parser');
 
-module.exports = {
-  handlebars:     hbs,
-  incrementalDom: idom,
+/**
+ * Compile a mustache template into incremental-dom code
+ * 
+ * @param  string template          The handlebars template.
+ * @param  object opts              Configuration options.
+ * @param  object opts.serializer   Serializer configuration
+ * @param  object opts.idom         Alternative incremental dom instance to use
+ * @param  object opts.hbs          Alternative handlebars runtime to use
+ * @param  object opts.asString     If true, the function will return an object with the source code instead
+ * @param  object opts.name         If given one, the current template will be registered as partial
+ * 
+ * @return function Returns a function(element, data) that will render the template.
+ */
+function compile (template, opts) {
+  var factory, parser, fragment, serializer, src, idom, hbs;
+  opts       = opts || {};
+  parser     = new Parser();
+  fragment   = parser.parseFragment(template, null);
+  serializer = new Serializer(fragment, opts.serializer);
+  src        = serializer.serialize();
+  idom       = opts.idom || this.idom;
+  hbs        = opts.hbs  || this;
 
-  /**
-   * Compile a mustache template into incremental-dom code
-   * @param  string template  The handlebars template.
-   * @param  object opts      Configuration options.
-   * @return function         Returns a function(element, data) that will render the template.
-   */
-  compile: function(template, opts) {
-    opts = opts || {};
-    var patch, updt, factory, fragments;
-    var parser     = new Parser();
-    var fragment   = parser.parseFragment(template, null);
-    var serializer = new Serializer(fragment, opts.serializer);
-    var src        = serializer.serialize();
-
-    if (opts.asString) {
-      return src;
-    }
-
-    factory = new Function("idom", "hbs", "return function(data) { " + src.main + " }");
-    updt    = factory(idom, hbs);
-
-    if (src.fragments) {
-      fragments = new Function("idom", "hbs", "return " + src.fragments + ";");
-      hbs.registerFragments(fragments(idom, hbs));
-    }
-
-    patch = function(node, data) { idom.patch(node, updt, data); };
-    view  = {
-      "patch":  patch,
-      "update": updt
-    };
-
-    if (typeof opts.name === "string") {
-      hbs.registerPartial(opts.name, view);
-    }
-
-    return view;
+  if (opts.asString) {
+    return src;
   }
+
+  factory = new Function('idom', 'hbs', 
+    'var parentContext = null;\n' +
+    'function update(data) {\n'+ 
+      src.main +
+    '}\n' +
+    'function render(element, data) {\n' +
+    // '  var currContext;\n' +
+    // '  options        = options || {};\n' +
+    // '  parentContext  = options.context || parentContext;\n' +
+    // '  currentContext = data;\n' +
+    // '  if (parentContext) {'
+    // '    currentContext       = hbs.context(data, parentContext);\n' +
+    // '    currentContext._body = options.fragment;\n' +
+    // '  }\n'+
+    '  if (element) {\n' +
+    '    idom.patch(element, update, data);\n' +
+    '  } else {\n' +
+    '    update(data);\n' +
+    '  }\n' +
+    '}\n' +
+    (src.fragments ? 'hbs.registerFragments(' + src.fragments +');\n' : '') +
+    (opts.name     ? 'hbs.registerPartial(\'' + opts.name +'\', render);\n' : '') +
+    'return render;'
+  );
+
+  return factory(idom, hbs);
 }
+
+handlebars.idom    = incrementalDom;
+handlebars.compile = compile;
+module.exports = handlebars;

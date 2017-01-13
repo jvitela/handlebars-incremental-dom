@@ -3,7 +3,7 @@
 
   QUnit.module('Block expressions', {
       beforeEach: function(assert) {
-          hbs = window.HandlebarsIncrementalDom;
+        hbs = window.HandlebarsIncrementalDom;
       }
   });
 

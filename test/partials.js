@@ -3,8 +3,7 @@
 
   QUnit.module('Partials', {
     beforeEach: function(assert) {
-      hbs = window.HandlebarsIncrementalDom.handlebars;
-      hbs.compile = window.HandlebarsIncrementalDom.compile;
+      hbs = window.HandlebarsIncrementalDom;
     }
   });
 

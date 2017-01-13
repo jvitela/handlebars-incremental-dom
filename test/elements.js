@@ -3,8 +3,7 @@
 
   QUnit.module('Tags inside elements and element\'s attributes', {
     beforeEach: function(assert) {
-      hbs = window.HandlebarsIncrementalDom.handlebars;
-      hbs.compile = window.HandlebarsIncrementalDom.compile;
+      hbs = window.HandlebarsIncrementalDom;
     }
   });
 
