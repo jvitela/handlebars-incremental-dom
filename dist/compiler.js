@@ -1343,24 +1343,28 @@
 	   * @param  object props The properties to be updated in the component
 	   */
 	  component: function(el, tagName, cid, parentContext, properties) {
-	    var template = this._partials[tagName.toLowerCase()];  
+	    var cmpName  = tagName.toLowerCase();
+	    var template = this._partials[cmpName];  
 	    var fragment = this._fragments[cid];
-	    var hbs = this;
+	    var element  = null;
+	    var proxy    = null;
+	    var hbs      = this;
 
-	    var view = {
-	      el: el,
-	      render: function(data) {
-	        data = hbs.context(data, parentContext);
-	        data._body = fragment;
-	        template(this.el, data);
-	      }
+	    function render(data) {
+	      debugger;
+	      data = hbs.context(data, parentContext);
+	      data._body = fragment;
+	      template(element, data);
 	    }
 
-	    var proxy = this.getComponentProxy(properties, view);
-	    
-	    view.el = null; // Set element as null to force view update
-	    proxy ? proxy.render() : view.render(properties);
-	    view.el = el;   // Set the element to use in following renders
+	    var proxy = this.getComponentProxy(el, cmpName, properties, render);
+
+	    if (proxy) {
+	      proxy.render();
+	      element = el; // Set the element to use in following renders
+	    } else { 
+	      render(properties);
+	    }
 	  },
 
 	  /**

@@ -34,7 +34,8 @@ module.exports = function(source) {
     // '    currentContext._body = options.fragment;\n' +
     // '  }\n'+
 
-  return 'var hbs = require("handlebars-incremental-dom");'+
+  return '' +
+  'var hbs = require("handlebars-incremental-dom");'+
   'var idom = hbs.idom;'+
   'function update(data) {'+ 
     src.main +
