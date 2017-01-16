@@ -1,9 +1,10 @@
 function getContext(data, _parent, index, last) {
+  var prnt   = _parent || {};
   var result = {
     "id":      data && data.id,
-    "root":    _parent.root  || data, 
-    "_parent": _parent       || null, 
-    "_body":   _parent._body || null,
+    "root":    prnt.root  || data, 
+    "_parent": _parent    || null, 
+    "_body":   prnt._body || null,
     "data":    data // Allow this to be undefined
   };
 
@@ -148,50 +149,48 @@ module.exports = {
    * @param  object data  The parent Context
    * @param  object props The properties to be updated in the component
    */
-  component: function(el, tagName, cid, data, props) {
-    var partial, template, proxy;
+  component: function(el, tagName, cid, parentContext, properties) {
+    var cmpName  = tagName.toLowerCase();
+    var template = this._partials[cmpName];  
+    var fragment = this._fragments[cid];
+    var element  = null;
+    var proxy    = null;
+    var hbs      = this;
 
-    partial = this._partials[tagName.toLowerCase()];
-    if (!partial) {
-      throw new SyntaxError("Component template not defined for '" + tagName + "'");
-      return;
+    if (!template) {
+      throw Error("Component '" + cmpName + "' is not defined");
     }
 
-    template = {
-      hbs:             this,
-      ready:           false,
-      element:         el,
-      parentContext:   data,
-      contentTemplate: this._fragments[cid] || null,
-      mainTemplate:    partial,
-      render: function(data) {
-        var context = this.hbs.context(data, this.parentContext);
-        context._body = this.contentTemplate;
-        this.ready ? 
-          this.mainTemplate.patch(this.element, context) :
-          this.mainTemplate.update(context);
-      }
-    };
+    function render(data) {
+      data = hbs.context(data, parentContext);
+      data._body = fragment;
+      template(element, data);
+    }
 
-    proxy = this.getComponentProxy(el, props, template);
-    proxy ? proxy.render() : template.render(props);
-    template.ready = true;
+    var proxy = this.getComponentProxy(el, cmpName, properties, render);
+
+    if (proxy) {
+      proxy.render();
+      element = el; // Set the element to use in following renders
+    } else { 
+      render(properties);
+    }
   },
 
   /**
    * Creates the view controller instance if none exists or returns the current one.
-   * @param  object el       The DOM Element associated to the view-controller
-   * @param  object props    The properties to set or update into the instance
-   * @param  object fnUpdate Update callback
-   * @param  object fnPatch  Patch callback
+   * @param  object props        The properties to set or update into the instance
+   * @param  object view         The view instance
+   * @param  object view.el      The DOM Element associated to the view
+   * @param  object view.render  The view method to call to update the DOM
    * @return object,null  The instance object or null if none
    */
-  getComponentProxy: function(el, props, template) {
+  getComponentProxy: function(props, view) {
     return null;
   },
 
   partial: function(name, data) {
-    var context, props, part = this._partials[name];
+    var context, props; //, part = this._partials[name];
 
     // Special case for components
     if (name === '@content' && typeof data._body === "function") {
@@ -202,9 +201,16 @@ module.exports = {
       data._body(context);    // Call the body partial
       data._props = props;    // Restore the previous _props
     }
-    else if (part && typeof part.update === "function") {
-      part.update(data); // Execute the partial
+    else if (typeof this._partials[name] === "function") {
+      this._partials[name](null, data); // Execute the partial
+      // this._partials[name](null, data.data, {
+      //   context:  data._parent,
+      //   fragment: this._fragments[cid]
+      // });      
     }
+    // else if (part && typeof part.update === "function") {
+    //   part.update(data); // Execute the partial
+    // }
   },
 
   registerFragments: function(fragments) {

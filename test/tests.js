@@ -18,12 +18,12 @@
   	var div  = document.createElement('div');   
   	var view = hbs.compile(tmpl);
 
-    assert.expect(4);
-    assert.equal(typeof view,        'object',   'compile returns an object.');    
-    assert.equal(typeof view.patch,  'function', 'it has a patch a function.');
-    assert.equal(typeof view.update, 'function', 'it has an update function.');
+    assert.expect(2);
+    assert.equal(typeof view, 'function', 'compile returns a function');
+    // assert.equal(typeof view.patch,  'function', 'it has a patch a function.');
+    // assert.equal(typeof view.update, 'function', 'it has an update function.');
 
-  	view.patch(div);
+  	view(div);
     assert.equal(tmpl, div.innerHTML);
   });
 

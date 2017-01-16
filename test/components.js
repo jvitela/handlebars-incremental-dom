@@ -3,8 +3,7 @@
 
   QUnit.module('Components', {
     beforeEach: function(assert) {
-      hbs = window.HandlebarsIncrementalDom.handlebars;
-      hbs.compile = window.HandlebarsIncrementalDom.compile;
+      hbs = window.HandlebarsIncrementalDom;
       opts = { renderComponentWrapper: false }; // serializer options
     }
   });

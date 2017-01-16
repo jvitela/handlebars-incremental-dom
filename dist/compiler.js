@@ -50,55 +50,69 @@
 /* 1 */
 /***/ function(module, exports, __webpack_require__) {
 
-	var idom       = __webpack_require__(2),
-	    hbs        = __webpack_require__(3),
-	    Serializer = __webpack_require__(4),
-	    Parser     = __webpack_require__(68);
+	var incrementalDom = __webpack_require__(2),
+	    handlebars     = __webpack_require__(3),
+	    Serializer     = __webpack_require__(4),
+	    Parser         = __webpack_require__(68);
 
-	module.exports = {
-	  handlebars:     hbs,
-	  incrementalDom: idom,
+	/**
+	 * Compile a mustache template into incremental-dom code
+	 * 
+	 * @param  string template          The handlebars template.
+	 * @param  object opts              Configuration options.
+	 * @param  object opts.serializer   Serializer configuration
+	 * @param  object opts.idom         Alternative incremental dom instance to use
+	 * @param  object opts.hbs          Alternative handlebars runtime to use
+	 * @param  object opts.asString     If true, the function will return an object with the source code instead
+	 * @param  object opts.name         If given one, the current template will be registered as partial
+	 * 
+	 * @return function Returns a function(element, data) that will render the template.
+	 */
+	function compile (template, opts) {
+	  var factory, parser, fragment, serializer, src, idom, hbs;
+	  opts       = opts || {};
+	  parser     = new Parser();
+	  fragment   = parser.parseFragment(template, null);
+	  serializer = new Serializer(fragment, opts.serializer);
+	  src        = serializer.serialize();
+	  idom       = opts.idom || this.idom;
+	  hbs        = opts.hbs  || this;
 
-	  /**
-	   * Compile a mustache template into incremental-dom code
-	   * @param  string template  The handlebars template.
-	   * @param  object opts      Configuration options.
-	   * @return function         Returns a function(element, data) that will render the template.
-	   */
-	  compile: function(template, opts) {
-	    opts = opts || {};
-	    var patch, updt, factory, fragments;
-	    var parser     = new Parser();
-	    var fragment   = parser.parseFragment(template, null);
-	    var serializer = new Serializer(fragment, opts.serializer);
-	    var src        = serializer.serialize();
-
-	    if (opts.asString) {
-	      return src;
-	    }
-
-	    factory = new Function("idom", "hbs", "return function(data) { " + src.main + " }");
-	    updt    = factory(idom, hbs);
-
-	    if (src.fragments) {
-	      fragments = new Function("idom", "hbs", "return " + src.fragments + ";");
-	      hbs.registerFragments(fragments(idom, hbs));
-	    }
-
-	    patch = function(node, data) { idom.patch(node, updt, data); };
-	    view  = {
-	      "patch":  patch,
-	      "update": updt
-	    };
-
-	    if (typeof opts.name === "string") {
-	      hbs.registerPartial(opts.name, view);
-	    }
-
-	    return view;
+	  if (opts.asString) {
+	    return src;
 	  }
+
+	  factory = new Function('idom', 'hbs', 
+	    'var parentContext = null;\n' +
+	    'function update(data) {\n'+ 
+	      src.main +
+	    '}\n' +
+	    'function render(element, data) {\n' +
+	    // '  var currContext;\n' +
+	    // '  options        = options || {};\n' +
+	    // '  parentContext  = options.context || parentContext;\n' +
+	    // '  currentContext = data;\n' +
+	    // '  if (parentContext) {'
+	    // '    currentContext       = hbs.context(data, parentContext);\n' +
+	    // '    currentContext._body = options.fragment;\n' +
+	    // '  }\n'+
+	    '  if (element) {\n' +
+	    '    idom.patch(element, update, data);\n' +
+	    '  } else {\n' +
+	    '    update(data);\n' +
+	    '  }\n' +
+	    '}\n' +
+	    (src.fragments ? 'hbs.registerFragments(' + src.fragments +');\n' : '') +
+	    (opts.name     ? 'hbs.registerPartial(\'' + opts.name +'\', render);\n' : '') +
+	    'return render;'
+	  );
+
+	  return factory(idom, hbs);
 	}
 
+	handlebars.idom    = incrementalDom;
+	handlebars.compile = compile;
+	module.exports = handlebars;
 
 /***/ },
 /* 2 */
@@ -1178,11 +1192,12 @@
 /***/ function(module, exports) {
 
 	function getContext(data, _parent, index, last) {
+	  var prnt   = _parent || {};
 	  var result = {
 	    "id":      data && data.id,
-	    "root":    _parent.root  || data, 
-	    "_parent": _parent       || null, 
-	    "_body":   _parent._body || null,
+	    "root":    prnt.root  || data, 
+	    "_parent": _parent    || null, 
+	    "_body":   prnt._body || null,
 	    "data":    data // Allow this to be undefined
 	  };
 
@@ -1327,49 +1342,45 @@
 	   * @param  object data  The parent Context
 	   * @param  object props The properties to be updated in the component
 	   */
-	  component: function(el, tagName, cid, data, props) {
-	    var partial, template, proxy;
+	  component: function(el, tagName, cid, parentContext, properties) {
+	    var cmpName  = tagName.toLowerCase();
+	    var template = this._partials[cmpName];  
+	    var fragment = this._fragments[cid];
+	    var element  = null;
+	    var proxy    = null;
+	    var hbs      = this;
 
-	    partial = this._partials[tagName.toLowerCase()];
-	    if (!partial) {
-	      return;
+	    function render(data) {
+	      debugger;
+	      data = hbs.context(data, parentContext);
+	      data._body = fragment;
+	      template(element, data);
 	    }
 
-	    template = {
-	      hbs:             this,
-	      ready:           false,
-	      element:         el,
-	      parentContext:   data,
-	      contentTemplate: this._fragments[cid] || null,
-	      mainTemplate:    partial,
-	      render: function(data) {
-	        var context = this.hbs.context(data, this.parentContext);
-	        context._body = this.contentTemplate;
-	        this.ready ? 
-	          this.mainTemplate.patch(this.element, context) :
-	          this.mainTemplate.update(context);
-	      }
-	    };
+	    var proxy = this.getComponentProxy(el, cmpName, properties, render);
 
-	    proxy = this.getComponentProxy(el, props, template);
-	    proxy ? proxy.render() : template.render(props);
-	    template.ready = true;
+	    if (proxy) {
+	      proxy.render();
+	      element = el; // Set the element to use in following renders
+	    } else { 
+	      render(properties);
+	    }
 	  },
 
 	  /**
 	   * Creates the view controller instance if none exists or returns the current one.
-	   * @param  object el       The DOM Element associated to the view-controller
-	   * @param  object props    The properties to set or update into the instance
-	   * @param  object fnUpdate Update callback
-	   * @param  object fnPatch  Patch callback
+	   * @param  object props        The properties to set or update into the instance
+	   * @param  object view         The view instance
+	   * @param  object view.el      The DOM Element associated to the view
+	   * @param  object view.render  The view method to call to update the DOM
 	   * @return object,null  The instance object or null if none
 	   */
-	  getComponentProxy: function(el, props, template) {
+	  getComponentProxy: function(props, view) {
 	    return null;
 	  },
 
 	  partial: function(name, data) {
-	    var context, props, part = this._partials[name];
+	    var context, props; //, part = this._partials[name];
 
 	    // Special case for components
 	    if (name === '@content' && typeof data._body === "function") {
@@ -1380,9 +1391,16 @@
 	      data._body(context);    // Call the body partial
 	      data._props = props;    // Restore the previous _props
 	    }
-	    else if (part && typeof part.update === "function") {
-	      part.update(data); // Execute the partial
+	    else if (typeof this._partials[name] === "function") {
+	      this._partials[name](null, data); // Execute the partial
+	      // this._partials[name](null, data.data, {
+	      //   context:  data._parent,
+	      //   fragment: this._fragments[cid]
+	      // });      
 	    }
+	    // else if (part && typeof part.update === "function") {
+	    //   part.update(data); // Execute the partial
+	    // }
 	  },
 
 	  registerFragments: function(fragments) {
@@ -1460,20 +1478,7 @@
 
 	// NOTE: exported as static method for the testing purposes
 	Serializer.escapeString = function (str, attrMode) {
-	    str = (str || '')
-	        .replace(AMP_REGEX, '&amp;')
-	        .replace(NBSP_REGEX, '&nbsp;');
-
-	    if (attrMode)
-	        str = str.replace(DOUBLE_QUOTE_REGEX, '&quot;');
-
-	    else {
-	        str = str
-	            .replace(LT_REGEX, '&lt;')
-	            .replace(GT_REGEX, '&gt;');
-	    }
-
-	    return str;
+	  return str || '';
 	};
 
 	//API
