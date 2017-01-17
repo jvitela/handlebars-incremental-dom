@@ -87,9 +87,9 @@ Serializer.prototype._getComponentId = function(tn) {
   return  (tn + ':' + this.id + ':' + (this.components.length + 1));
 }
 
-Serializer.prototype._getComponentInstanceId = function(tn, cid) {
-  return 'hbs.cid(data, "' + cid + '")';
-}
+// Serializer.prototype._getComponentInstanceId = function(tn, cid) {
+//   return 'hbs.cid(data, "' + cid + '")';
+// }
 
 Serializer.prototype._addComponentContentTemplate = function(id, childNodes) {
   var html  = this.html;
