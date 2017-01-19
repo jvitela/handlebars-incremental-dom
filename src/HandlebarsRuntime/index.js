@@ -3,12 +3,14 @@ var isPatching = false;
 
 function getContext(data, _parent, index, last) {
   var prnt   = _parent || {};
+  var dta    = data || {};
   var result = {
-    "id":      data && data.id,
-    "root":    prnt.root  || data, 
+    "id":      dta.id,
+    "root":    prnt.root  || dta, 
+    "data":    data,      // Allow this to be undefined
+    "_cid":    dta._cid,  // component instance id
     "_parent": _parent    || null, 
-    "_body":   prnt._body || null,
-    "data":    data // Allow this to be undefined
+    "_body":   prnt._body || null
   };
 
   if (index !== undefined) {
@@ -78,14 +80,20 @@ module.exports = {
     return getContext(data, _parent, index, last);
   },
 
+  /**
+   * @return string The data id or the component id, prefixed.
+   */
   id: function(data, prefix) {
-    return data.id !== undefined ? (prefix + ':' + data.id) : null;
+    var id = data.id || data._cid;
+    return id !== undefined ? (prefix + ':' + id) : null;
   },
 
-  cid: function(data, prefix) {
-    return data.id !== undefined ? (prefix + ':' + data.id + (data.index ? ':' + data.index : '')) : null;
-  },
+  // cid: function(data, prefix) {
+  //   return data.id !== undefined ? (prefix + ':' + data.id + (data.index ? ':' + data.index : '')) : null;
+  // },
 
+  // TODO: Check cases where different DOM trees try to render
+  // themselves at a race condition
   patch: function(element, update, data, options) {
     var cid, ctx;
     options = options || {};
@@ -95,14 +103,16 @@ module.exports = {
     if (ctx) {
       data = this.context(data, ctx);
       data._body = this._fragments[cid];
+      data._cid  = cid;
     }
 
-    if (element && !isPatching) {
+    if (isPatching) {
+      update(data);
+    }
+    else if(element) {
       isPatching = true;
       idom.patch(element, update, data);
       isPatching = false;
-    } else {
-      update(data);
     }
   },
 
@@ -181,7 +191,8 @@ module.exports = {
     this._contexts[cid] = parentContext;
     proxy = this.getComponentProxy(el, tagName, properties, options);
 
-    if (proxy) { 
+    if (proxy) {
+      // TODO: Add render queue ?
       proxy.render();
       return;
     }

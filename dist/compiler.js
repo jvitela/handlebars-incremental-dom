@@ -82,31 +82,6 @@
 	    return src;
 	  }
 
-	  // factory = new Function('idom', 'hbs', 
-	  //   'var parentContext = null;\n' +
-	  //   'function update(data) {\n'+ 
-	  //     src.main +
-	  //   '}\n' +
-	  //   'function render(element, data) {\n' +
-	  //   // '  var currContext;\n' +
-	  //   // '  options        = options || {};\n' +
-	  //   // '  parentContext  = options.context || parentContext;\n' +
-	  //   // '  currentContext = data;\n' +
-	  //   // '  if (parentContext) {'
-	  //   // '    currentContext       = hbs.context(data, parentContext);\n' +
-	  //   // '    currentContext._body = options.fragment;\n' +
-	  //   // '  }\n'+
-	  //   '  if (element) {\n' +
-	  //   '    idom.patch(element, update, data);\n' +
-	  //   '  } else {\n' +
-	  //   '    update(data);\n' +
-	  //   '  }\n' +
-	  //   '}\n' +
-	  //   (src.fragments ? 'hbs.registerFragments(' + src.fragments +');\n' : '') +
-	  //   (opts.name     ? 'hbs.registerPartial(\'' + opts.name +'\', render);\n' : '') +
-	  //   'return render;'
-	  // );
-
 	  factory = new Function('hbs', 'idom', 
 	    'var parentContext = null;\n' +
 	    'function update(data) {\n'+ 
@@ -123,7 +98,7 @@
 	  return factory(hbs, incrementalDom);
 	}
 
-	// handlebars.idom    = incrementalDom;
+	handlebars.idom    = incrementalDom;
 	handlebars.compile = compile;
 	module.exports = handlebars;
 
@@ -1303,13 +1278,18 @@
 	      data._body = this._fragments[cid];
 	    }
 
-	    if (element && !isPatching) {
+	    if (isPatching) {
+	      update(data);
+	    } 
+	    else if(element) {
 	      isPatching = true;
 	      idom.patch(element, update, data);
 	      isPatching = false;
-	    } else {
-	      update(data);
 	    }
+	  },
+
+	  isPatching: function() {
+	    return isPatching;
 	  },
 
 	  /**
