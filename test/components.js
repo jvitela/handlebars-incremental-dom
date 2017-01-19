@@ -51,8 +51,8 @@
   });
 
   QUnit.test('nested components', function(assert) {
-    var component, template, view, data, result;
-    assert.expect(2);
+    var component, template, view, data, result, expected;
+    assert.expect(1);
 
     component = {
       'my-list': '<ul class={{ list_type }}>{{> @content }}</ul>',
@@ -61,33 +61,75 @@
     hbs.compile(component['my-list'], {name:'my-list', serializer: opts});
     hbs.compile(component['my-itm'],  {name:'my-itm', serializer: opts});
 
-    template = '<my-list list_type={{genere}} list_items={{ movies }}>{{#each @props.list_items}}<my-itm itm_type={{ year }} itm_title={{ name }}></my-itm>{{/each}}</my-list>';
+    template = ''+
+      '<my-list list_type={{genere}} list_items={{ movies }}>'+
+        '{{#each @props.list_items}}'+
+          '<my-itm itm_type={{ year }} itm_title={{ name }}></my-itm>'+
+        '{{/each}}'+
+      '</my-list>';
     data     = {
       genere: 'action', 
       movies: [{year:2016, name:'Reavenant'}, {year:2015, name:'Fast & Furious 7'}, {year:2017, name:'Warcraft'}] 
     };
+    expected = '' +
+      '<ul class="action">'+
+        '<li class="2016">Reavenant</li>'+
+        '<li class="2015">Fast &amp; Furious 7</li>'+
+        '<li class="2017">Warcraft</li>'+
+      '</ul>';
     view     = hbs.compile(template, {serializer: opts});
     result   = renderToString(hbs, view, data);
-    assert.equal(result, '<ul class="action"><li class="2016">Reavenant</li><li class="2015">Fast &amp; Furious 7</li><li class="2017">Warcraft</li></ul>', template);
+    assert.equal(result, expected, template);
+  });
+
+  QUnit.test('nested components with access to component properties', function(assert) {
+    var component, template, view, data, result, expected;
+    assert.expect(1);
 
     component = {
-      'my-list': '<ul class={{ list_type }}>{{#each list_items}}{{> @content }}{{/each}}</ul>',
+      'my-list': '' +
+        '<ul class={{ list_type }}>'+
+          '{{#each list_items}}'+
+            '{{> @content }}'+
+          '{{/each}}'+
+        '</ul>',
+
       'my-itm':  '<li class={{ itm_type }}>{{ itm_title }}</li>'
     };
     hbs.compile(component['my-list'], {name:'my-list', serializer: opts});
-    hbs.compile(component['my-itm'],  {name:'my-itm', serializer: opts});
+    hbs.compile(component['my-itm'],  {name:'my-itm',  serializer: opts});
+
     hbs.registerHelper('json',function(data) {
       return JSON.stringify(data);
     });
 
-    template = '<my-list list_type={{genere}} list_items={{ movies }}><my-itm itm_type={{@props.year}} itm_title={{@props.name}}></my-itm></my-list>'; //
+    template = ''+
+      '<my-list list_type={{genere}} list_items={{ movies }}>'+
+        '<my-itm itm_type={{@props.year}} itm_title={{@props.name}}></my-itm>'+
+      '</my-list>';
     data     = { 
-      genere:'action', 
-      movies:[{year:2016, name:'Reavenant'}, {year:2015, name:'Fast & Furious 7'}, {year:2017, name:'Warcraft'}] 
+      genere:'action',
+      movies:[
+        {
+          year:2016, 
+          name:'Reavenant'
+        }, {
+          year:2015, 
+          name:'Fast & Furious 7'
+        }, {
+          year:2017, 
+          name:'Warcraft'
+        }
+      ] 
     };
+    expected = ''+
+      '<ul class="action">'+
+        '<li class="2016">Reavenant</li>'+
+        '<li class="2015">Fast &amp; Furious 7</li>'+
+        '<li class="2017">Warcraft</li>'+
+      '</ul>';
     view     = hbs.compile(template, {serializer: opts});
     result   = renderToString(hbs, view, data);
-    assert.equal(result, '<ul class="action"><li class="2016">Reavenant</li><li class="2015">Fast &amp; Furious 7</li><li class="2017">Warcraft</li></ul>', template);
-
+    assert.equal(result, expected, template);
   });
 })(window.QUnit); 
