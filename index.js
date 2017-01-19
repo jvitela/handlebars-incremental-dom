@@ -1,7 +1,7 @@
-var incrementalDom = require('incremental-dom'),
-    handlebars     = require('./src/HandlebarsRuntime'),
-    Serializer     = require('./src/Serializer'),
-    Parser         = require('./src/Parser');
+var incrementalDom = require('incremental-dom');
+var handlebars     = require('./src/HandlebarsRuntime');
+var Serializer     = require('./src/Serializer');
+var Parser         = require('./src/Parser');
 
 /**
  * Compile a mustache template into incremental-dom code
@@ -30,34 +30,47 @@ function compile (template, opts) {
     return src;
   }
 
-  factory = new Function('idom', 'hbs', 
+  // factory = new Function('idom', 'hbs', 
+  //   'var parentContext = null;\n' +
+  //   'function update(data) {\n'+ 
+  //     src.main +
+  //   '}\n' +
+  //   'function render(element, data) {\n' +
+  //   // '  var currContext;\n' +
+  //   // '  options        = options || {};\n' +
+  //   // '  parentContext  = options.context || parentContext;\n' +
+  //   // '  currentContext = data;\n' +
+  //   // '  if (parentContext) {'
+  //   // '    currentContext       = hbs.context(data, parentContext);\n' +
+  //   // '    currentContext._body = options.fragment;\n' +
+  //   // '  }\n'+
+  //   '  if (element) {\n' +
+  //   '    idom.patch(element, update, data);\n' +
+  //   '  } else {\n' +
+  //   '    update(data);\n' +
+  //   '  }\n' +
+  //   '}\n' +
+  //   (src.fragments ? 'hbs.registerFragments(' + src.fragments +');\n' : '') +
+  //   (opts.name     ? 'hbs.registerPartial(\'' + opts.name +'\', render);\n' : '') +
+  //   'return render;'
+  // );
+
+  factory = new Function('hbs', 'idom', 
     'var parentContext = null;\n' +
     'function update(data) {\n'+ 
       src.main +
     '}\n' +
-    'function render(element, data) {\n' +
-    // '  var currContext;\n' +
-    // '  options        = options || {};\n' +
-    // '  parentContext  = options.context || parentContext;\n' +
-    // '  currentContext = data;\n' +
-    // '  if (parentContext) {'
-    // '    currentContext       = hbs.context(data, parentContext);\n' +
-    // '    currentContext._body = options.fragment;\n' +
-    // '  }\n'+
-    '  if (element) {\n' +
-    '    idom.patch(element, update, data);\n' +
-    '  } else {\n' +
-    '    update(data);\n' +
-    '  }\n' +
+    'function render(element, data, opts) {\n' +
+    '  hbs.patch(element, update, data, opts);\n' +
     '}\n' +
     (src.fragments ? 'hbs.registerFragments(' + src.fragments +');\n' : '') +
     (opts.name     ? 'hbs.registerPartial(\'' + opts.name +'\', render);\n' : '') +
     'return render;'
   );
 
-  return factory(idom, hbs);
+  return factory(hbs, incrementalDom);
 }
 
-handlebars.idom    = incrementalDom;
+// handlebars.idom    = incrementalDom;
 handlebars.compile = compile;
 module.exports = handlebars;

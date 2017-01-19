@@ -1,10 +1,13 @@
+var idom = require('incremental-dom');
+var isPatching = false;
+
 function getContext(data, _parent, index, last) {
   var prnt   = _parent || {};
   var result = {
     "id":      data && data.id,
     "root":    prnt.root  || data, 
     "_parent": _parent    || null, 
-    "_body":   prnt._body || null,
+    // "_body":   prnt._body || null,
     "data":    data // Allow this to be undefined
   };
 
@@ -69,6 +72,7 @@ module.exports = {
   _helpers:    {},
   _partials:   {},
   _fragments:  {},
+  _options:    {},
 
   context: function(data, _parent, index, last) {
     return getContext(data, _parent, index, last);
@@ -80,6 +84,26 @@ module.exports = {
 
   cid: function(data, prefix) {
     return data.id !== undefined ? (prefix + ':' + data.id + (data.index ? ':' + data.index : '')) : null;
+  },
+
+  patch: function(element, update, data, options) {
+    options = options || {};
+    
+    if (options.context) {
+      data = this.context(data, options.context);
+    }
+
+    this._options = options;
+
+    if (isPatching) {
+      update(data);
+    } else {
+      isPatching = true;
+      idom.patch(element, update, data);
+      isPatching = false;
+    }
+
+    this._options = {};
   },
 
   /**
@@ -150,55 +174,72 @@ module.exports = {
    * @param  object props The properties to be updated in the component
    */
   component: function(el, tagName, cid, parentContext, properties) {
-    var cmpName  = tagName.toLowerCase();
-    var template = this._partials[cmpName];  
-    var fragment = this._fragments[cid];
-    var element  = null;
-    var proxy    = null;
-    var hbs      = this;
+    var template, options, proxy; //, fragment
+    tagName  = tagName.toLowerCase();
+    // fragment = this._fragments[cid];
+    // var element  = null;
+    // var proxy    = null;
+    // var hbs      = this;
 
-    if (!template) {
-      throw Error("Component '" + cmpName + "' is not defined");
-    }
+    options = {
+      'context': parentContext,
+      'partials': { '@content': this._fragments[cid] },
+    };
 
-    function render(data) {
-      data = hbs.context(data, parentContext);
-      data._body = fragment;
-      template(element, data);
-    }
-
-    var proxy = this.getComponentProxy(el, cmpName, properties, render);
-
-    if (proxy) {
+    proxy = this.getComponentProxy(el, tagName, properties, options);
+    
+    if (proxy) { 
       proxy.render();
-      element = el; // Set the element to use in following renders
-    } else { 
-      render(properties);
+      return;
     }
+
+    template = this._partials[tagName];
+    if (!template) {
+      throw Error("Component '" + tagName + "' is not defined");
+    }
+    template(el, properties, options);
+
+    // function render(data) {
+    //   data = hbs.context(data, parentContext);
+    //   data._body = fragment;
+    //   template(element, data);
+    // }
+
+    // var proxy = this.getComponentProxy(el, tagName, properties, render);
+
+    // if (proxy) {
+    //   proxy.render();
+    //   element = el; // Set the element to use in following renders
+    // } else { 
+    //   render(properties);
+    // }
   },
 
   /**
    * Creates the view controller instance if none exists or returns the current one.
-   * @param  object props        The properties to set or update into the instance
-   * @param  object view         The view instance
-   * @param  object view.el      The DOM Element associated to the view
-   * @param  object view.render  The view method to call to update the DOM
+   * 
+   * @param  object el        The DOM Element associated to the view
+   * @param  string tagName   The registered component tag name
+   * @param  object props     The properties to set or update into the instance
+   * @param  object tmplOpts  The config options for the template
+   * 
    * @return object,null  The instance object or null if none
    */
-  getComponentProxy: function(props, view) {
+  getComponentProxy: function(el, tagName, props, tmplOpts) {
     return null;
   },
 
   partial: function(name, data) {
     var context, props; //, part = this._partials[name];
-
+    debugger;
     // Special case for components
-    if (name === '@content' && typeof data._body === "function") {
+    if (name === '@content' && this._options.partials && this._options.partials['@content'] /*typeof data._body === "function"*/) {
       // The components content is always executed in the parent's context
       context = data._parent;
       props   = data._props;  // Store previous _props 
       context._props = data;  // TODO: check if we need to clone
-      data._body(context);    // Call the body partial
+      // data._body(context);    // Call the body partial
+      this._options.partials['@content'](context);
       data._props = props;    // Restore the previous _props
     }
     else if (typeof this._partials[name] === "function") {
