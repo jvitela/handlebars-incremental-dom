@@ -1,6 +1,31 @@
 var idom = require('incremental-dom');
 var isPatching = false;
 
+var Renderer = {
+  _isRendering: false,
+  _queue: [],
+
+  addTask: function(params) {
+    var that = this;
+    this._queue.push(params);
+    if (!this._isRendering) {
+      requestAnimationFrame(function() { that.renderTasks(); });
+      // setTimeout(function() { that.renderTasks(); }, 0);
+    }
+  },
+
+  renderTasks() {
+    var hbs, params;
+    this._isRendering = true;
+    while (this._queue.length) {
+      params = this._queue.shift();
+      hbs    = params.shift();
+      hbs.renderComponent.apply(hbs, params);
+    }
+    this._isRendering = false;
+  }
+};
+
 function getContext(data, _parent, index, last) {
   var prnt   = _parent || {};
   var dta    = data || {};
@@ -92,8 +117,6 @@ module.exports = {
   //   return data.id !== undefined ? (prefix + ':' + data.id + (data.index ? ':' + data.index : '')) : null;
   // },
 
-  // TODO: Check cases where different DOM trees try to render
-  // themselves at a race condition
   patch: function(element, update, data, options) {
     var cid, ctx;
     options = options || {};
@@ -184,15 +207,19 @@ module.exports = {
    * @param  object props The properties to be updated in the component
    */
   component: function(el, tagName, cid, parentContext, properties) {
-    var template, options, proxy;
-    tagName = tagName.toLowerCase();
+    idom.skip();
+    Renderer.addTask([this, el, tagName, cid, parentContext, properties]);
+  },
 
+  renderComponent: function(el, tagName, cid, parentContext, properties) {
+    var template, options, proxy;
+
+    tagName = tagName.toLowerCase();
     options = { '@cid': cid };
     this._contexts[cid] = parentContext;
-    proxy = this.getComponentProxy(el, tagName, properties, options);
 
+    proxy = this.getComponentProxy(el, tagName, properties, options);
     if (proxy) {
-      // TODO: Add render queue ?
       proxy.render();
       return;
     }
