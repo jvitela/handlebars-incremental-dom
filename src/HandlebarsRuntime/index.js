@@ -2,27 +2,44 @@ var idom = require('incremental-dom');
 var isPatching = false;
 
 var Renderer = {
-  _isRendering: false,
-  _queue: [],
+  _pending: 0,
+  _queue:   {},
 
-  addTask: function(params) {
+  addTask: function(id, hbs, params) {
     var that = this;
-    this._queue.push(params);
-    if (!this._isRendering) {
+    // this._queue.push(params);
+    this._queue[id] = {
+      hbs:    hbs,
+      params: params,
+      order:  ++this._pending
+    };
+    if (this._pending > 0) {
       requestAnimationFrame(function() { that.renderTasks(); });
       // setTimeout(function() { that.renderTasks(); }, 0);
     }
   },
 
   renderTasks() {
-    var hbs, params;
-    this._isRendering = true;
-    while (this._queue.length) {
-      params = this._queue.shift();
-      hbs    = params.shift();
-      hbs.renderComponent.apply(hbs, params);
+    var task, tasks;
+
+    if (!this._pending) {
+      console.log("Nothing to render ...");
+      return;
     }
-    this._isRendering = false;
+
+    console.log(" ============= START ============= ")
+    tasks = Object.values(this._queue).sort(function(a,b) {
+      return a.order - b.order;
+    });
+
+    while (/*this._queue*/ tasks.length) {
+      task = tasks.shift();
+      task.hbs.renderComponent.apply(task.hbs, task.params);
+    }
+
+    this._queue   = {};
+    this._pending = 0;
+    console.log(" ============= END ============= ")
   }
 };
 
@@ -208,7 +225,8 @@ module.exports = {
    */
   component: function(el, tagName, cid, parentContext, properties) {
     idom.skip();
-    Renderer.addTask([this, el, tagName, cid, parentContext, properties]);
+    // Defer the actuar rendering as this might trigger new renders for custom components
+    Renderer.addTask(cid, this, [el, tagName, cid, parentContext, properties]);
   },
 
   renderComponent: function(el, tagName, cid, parentContext, properties) {

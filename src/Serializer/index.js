@@ -820,11 +820,24 @@ Serializer.prototype._serializeConstAttributes = function (attrs) {
   }
 };
 
+Serializer.prototype._normalizeAttrName = function(name) {
+  name = name.trim();
+  // Replace all 'onclick' type of events for 'onClick' etc;
+  if (name.indexOf('on') === 0) {
+    name = name.replace(/^on([a-z])/i, function($0, $1) { return 'on' + $1.toUpperCase(); });
+  }
+  // convert dash-case to camel-case: 'click-once' to 'clickOnce'
+  if (name.indexOf('-') !== -1) {
+    name  = name.replace(/-([a-z])/gi, function($0, $1) { return $1.toUpperCase(); } );
+  }
+  return JSON.stringify(name);
+};
+
 Serializer.prototype._serializeComponentAttributes = function (attrs) {
   var i, l, attr, name;
   for (i = 0, l = attrs.length; i < l; ++i) {
     attr = attrs[i];
-    name = JSON.stringify(attr.name);
+    name = this._normalizeAttrName(attr.name);
 
     if (i > 0) {
       this.html += ',\n';
