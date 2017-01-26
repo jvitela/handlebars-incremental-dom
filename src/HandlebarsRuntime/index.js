@@ -224,25 +224,29 @@ module.exports = {
    * @param  object props The properties to be updated in the component
    */
   component: function(el, tagName, cid, parentContext, properties) {
-    idom.skip();
-    // Defer the actuar rendering as this might trigger new renders for custom components
-    Renderer.addTask(cid, this, [el, tagName, cid, parentContext, properties]);
+    // idom.skip();
+    // // Defer the actuar rendering as this might trigger new renders for custom components
+    // Renderer.addTask(cid, this, [el, tagName, cid, parentContext, properties]);
+    var options = { '@cid': cid };
+    tagName = tagName.toLowerCase();
+    this._contexts[cid] = parentContext;
+    this.renderComponent(el, tagName, properties, options);
   },
 
-  renderComponent: function(el, tagName, cid, parentContext, properties) {
-    var template, options, proxy;
+  renderComponent: function(el, tagName, properties, options) {
+    // var template, options, proxy;
 
-    tagName = tagName.toLowerCase();
-    options = { '@cid': cid };
-    this._contexts[cid] = parentContext;
+    // tagName = tagName.toLowerCase();
+    // options = { '@cid': cid };
+    // this._contexts[cid] = parentContext;
 
-    proxy = this.getComponentProxy(el, tagName, properties, options);
-    if (proxy) {
-      proxy.render();
-      return;
-    }
+    // proxy = this.getComponentProxy(el, tagName, properties, options);
+    // if (proxy) {
+    //   proxy.render();
+    //   return;
+    // }
 
-    template = this._partials[tagName];
+    var template = this._partials[tagName];
     if (!template) {
       throw Error("Component '" + tagName + "' is not defined");
     }
@@ -259,9 +263,9 @@ module.exports = {
    * 
    * @return object,null  The instance object or null if none
    */
-  getComponentProxy: function(el, tagName, props, tmplOpts) {
-    return null;
-  },
+  // getComponentProxy: function(el, tagName, props, tmplOpts) {
+  //   return null;
+  // },
 
   partial: function(name, data) {
     var context, props;
