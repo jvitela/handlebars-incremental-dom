@@ -1,48 +1,6 @@
 var idom = require('incremental-dom');
 var isPatching = false;
 
-var Renderer = {
-  _pending: 0,
-  _queue:   {},
-
-  addTask: function(id, hbs, params) {
-    var that = this;
-    // this._queue.push(params);
-    this._queue[id] = {
-      hbs:    hbs,
-      params: params,
-      order:  ++this._pending
-    };
-    if (this._pending > 0) {
-      requestAnimationFrame(function() { that.renderTasks(); });
-      // setTimeout(function() { that.renderTasks(); }, 0);
-    }
-  },
-
-  renderTasks() {
-    var task, tasks;
-
-    if (!this._pending) {
-      console.log("Nothing to render ...");
-      return;
-    }
-
-    console.log(" ============= START ============= ")
-    tasks = Object.values(this._queue).sort(function(a,b) {
-      return a.order - b.order;
-    });
-
-    while (/*this._queue*/ tasks.length) {
-      task = tasks.shift();
-      task.hbs.renderComponent.apply(task.hbs, task.params);
-    }
-
-    this._queue   = {};
-    this._pending = 0;
-    console.log(" ============= END ============= ")
-  }
-};
-
 function getContext(data, _parent, index, last) {
   var prnt   = _parent || {};
   var dta    = data || {};
@@ -50,7 +8,6 @@ function getContext(data, _parent, index, last) {
     "id":      dta.id,
     "root":    prnt.root  || dta, 
     "data":    data,      // Allow this to be undefined
-    "_cid":    dta._cid,  // component instance id
     "_parent": _parent    || null, 
     "_body":   prnt._body || null
   };
@@ -126,12 +83,12 @@ module.exports = {
    * @return string The data id or the component id, prefixed.
    */
   id: function(data, prefix) {
-    var id = data.id || data._cid;
-    return id !== undefined ? (prefix + ':' + id) : null;
+    var id = data.id;
+    return (id !== undefined ? (prefix + ':' + id) : null);
   },
 
   // cid: function(data, prefix) {
-  //   return data.id !== undefined ? (prefix + ':' + data.id + (data.index ? ':' + data.index : '')) : null;
+  //   return data.id !== undefined ? (prefix + ':' + data.id + (data.index !== undefined ? ':' + data.index : '')) : null;
   // },
 
   patch: function(element, update, data, options) {
@@ -143,7 +100,6 @@ module.exports = {
     if (ctx) {
       data = this.context(data, ctx);
       data._body = this._fragments[cid];
-      data._cid  = cid;
     }
 
     if (isPatching) {
