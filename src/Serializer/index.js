@@ -64,6 +64,7 @@ Serializer.prototype.serialize = function () {
 
   this.id = Date.now();
   this.elemCount = 0;
+  this.headers = '';
   this.html = 'var val;\n';
   this.html += "data = (data && data.root) ? data : { 'id': (data && data.id), 'data': data, 'root': data };\n";
   this._serializeChildNodes(childNodes);
@@ -71,6 +72,7 @@ Serializer.prototype.serialize = function () {
   var components = _.map(this.components, function(cmp) { return '"' + cmp.id + '": ' + cmp.fn });
 
   return {
+    'headers':   this.headers,
     'fragments': components.length ? ('{\n' + components.join(',\n') + '\n}') : null,
     'main':      this.html,
     'map':       this.srcMapGen.toString()
@@ -334,6 +336,11 @@ Serializer.prototype._serializeElement = function (node) {
 
   attrs = this._groupAttrsByType(attrs);
 
+  if (tn === 'require') {
+    this._serializeRequireElement(node, tn, ns, attrs);
+    return;
+  }
+
   if (tn !== $.AREA   && tn !== $.BASE  && tn !== $.BASEFONT && tn !== $.BGSOUND && tn !== $.BR    && tn !== $.BR &&
       tn !== $.COL  && tn !== $.EMBED && tn !== $.FRAME    && tn !== $.HR      && tn !== $.IMG   && tn !== $.INPUT &&
       tn !== $.KEYGEN && tn !== $.LINK  && tn !== $.MENUITEM && tn !== $.META    && tn !== $.PARAM && tn !== $.SOURCE &&
@@ -343,6 +350,37 @@ Serializer.prototype._serializeElement = function (node) {
   else {
     this._serializeVoidElement(node, tn, ns, attrs);
   }
+};
+
+/**
+ * Serialize <require> element
+ * 
+ * @param  object node  Current node
+ * @param  string tn    Tag name
+ * @param  string ns    Name space
+ * @param  object attrs Dynamic and Static attributes
+ * 
+ * @return void
+ */
+Serializer.prototype._serializeRequireElement = function(node, tn, ns, attrs) {
+  if (attrs.dynamic.length) {
+    throw this._buildParsingError("Require tags cannot contain dynamic attributes");
+  }
+
+  var i = 0, l = attrs.static.length, attr, moduleName = false;
+  for (; i < l; i++) {
+    attr = attrs.static[i];
+    if (attr.name === 'from') {
+      moduleName = attr.value;
+      break;
+    }
+  }
+
+  if (!moduleName) {
+    throw this._buildParsingError("Require tag must have a 'from' attribute");
+  }
+
+  this.headers += 'require("' + moduleName + '");\n';
 };
 
 Serializer.prototype._serializeVoidElement = function(node, tn, ns, attrs) {

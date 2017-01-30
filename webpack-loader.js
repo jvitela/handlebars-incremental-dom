@@ -17,6 +17,7 @@ module.exports = function(source) {
   return '' +
   'var hbs  = require("handlebars-incremental-dom");'+
   'var idom = hbs.idom;'+
+  src.headers + '\n' + 
   'function update(data) {'+ 
     src.main +
   '}' +
