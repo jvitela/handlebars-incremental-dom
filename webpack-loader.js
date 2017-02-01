@@ -15,8 +15,9 @@ module.exports = function(source) {
   path = this.resourcePath.split("/").pop().split(".")[0]; // /^([^\/]+\/)+([^\/]+)\.hbs$/g
 
   return '' +
-  'var hbs  = require("handlebars-incremental-dom");'+
-  'var idom = hbs.idom;'+
+  'var hbsidom = require("handlebars-incremental-dom/runtime");'+
+  'var hbs  = hbsidom.handlebars;' +
+  'var idom = hbsidom.incrementalDOM;'+
   src.headers + '\n' + 
   'function update(data) {'+ 
     src.main +
