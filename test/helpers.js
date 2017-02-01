@@ -49,6 +49,38 @@
     assert.equal('hello euro', renderToString(hbs, template, data), template);
   });
 
+  QUnit.test('value argument types', function(assert) {
+    var template, data;
+    assert.expect(7);
+
+    hbs.registerHelper('typeof', function(value) { return (typeof value); });
+
+    template = '{{typeof "hello"}}';
+    assert.equal('string', renderToString(hbs, template, data), template);
+
+    template = '{{typeof 123}}';
+    assert.equal('number', renderToString(hbs, template, data), template);
+
+    template = '{{typeof 12.3}}';
+    assert.equal('number', renderToString(hbs, template, data), template);
+
+    template = '{{typeof foo}}';
+    data     = {'foo':{}};
+    assert.equal('object', renderToString(hbs, template, data), template);
+
+    template = '{{typeof foo}}';
+    data     = {'foo':[]};
+    assert.equal('object', renderToString(hbs, template, data), template);
+
+    template = '{{typeof foo}}';
+    data     = {'foo':'bar'};
+    assert.equal('string', renderToString(hbs, template, data), template);
+
+    template = '{{typeof foo}}';
+    data     = {'foo':123};
+    assert.equal('number', renderToString(hbs, template, data), template);    
+  });
+
   QUnit.test('hash arguments', function(assert) {
     var template, data;
     assert.expect(4);
@@ -68,6 +100,38 @@
     template = '{{greet-helper salutation=[h!] subject=[\\\/\\\/*rLd]}}';
     data     = {'h!': 'hello', '\\\/\\\/*rLd': 'world'};
     assert.equal('hello world', renderToString(hbs, template, data), template);    
+  });
+
+  QUnit.test('hash argument types', function(assert) {
+    var template, data;
+    assert.expect(7);
+
+    hbs.registerHelper('typeof', function(opts) { return (typeof opts.hash.val); });
+
+    template = '{{typeof val="hello"}}';
+    assert.equal('string', renderToString(hbs, template, data), template);
+
+    template = '{{typeof val=123}}';
+    assert.equal('number', renderToString(hbs, template, data), template);
+
+    template = '{{typeof val=12.3}}';
+    assert.equal('number', renderToString(hbs, template, data), template);
+
+    template = '{{typeof val=foo}}';
+    data     = {'foo':{}};
+    assert.equal('object', renderToString(hbs, template, data), template);
+
+    template = '{{typeof val=foo}}';
+    data     = {'foo':[]};
+    assert.equal('object', renderToString(hbs, template, data), template);
+
+    template = '{{typeof val=foo}}';
+    data     = {'foo':'bar'};
+    assert.equal('string', renderToString(hbs, template, data), template);
+
+    template = '{{typeof val=foo}}';
+    data     = {'foo':123};
+    assert.equal('number', renderToString(hbs, template, data), template);
   });
 
   QUnit.test('block helpers', function(assert) {

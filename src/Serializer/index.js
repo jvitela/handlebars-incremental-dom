@@ -552,7 +552,7 @@ Serializer.prototype._serializeMustacheAttrName = function (attr) {
   if (attr.nameType === Object) {
       this._serializeMustacheExpr(attr.namePath);
   }
-  else if (attr.nameType === Number) {
+  else if (attr.nameType === Number || attr.nameType === Boolean) {
     this.html += attr.name;
   }
   else {
