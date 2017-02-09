@@ -462,7 +462,7 @@ Serializer.prototype._groupAttrsByType = function(attrs) {
       continue;
     }
 
-    vals = attrs[i].dynamicValues;
+    vals = attrs[i].dynamicValues || [];
 
     if (attrs[i].value !== "" || vals.length === 0) {
       staticAttrs.push(attrs[i]);

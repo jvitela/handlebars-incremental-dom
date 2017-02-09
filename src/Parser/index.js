@@ -35,7 +35,7 @@ module.exports = extend(BaseParser, {
   },
 
   _processToken: function(token) {
-    if (this.insertionMode === 'IN_BODY_MODE' && token.mustache) {
+    if (/*this.insertionMode === 'IN_BODY_MODE' &&*/ token.mustache) {
       this._insertMustache(token, NS.HTML);
     } else {
       BaseParser.prototype._processToken.call(this, token);

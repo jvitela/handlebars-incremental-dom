@@ -1,6 +1,9 @@
 # handlebars-incremental-dom
 Handlebars to Incremental DOM transpiler
 
+How to debug  
+-------------
+$> node --inspect --debug-brk compiler.js
 
 TODO
 -----
