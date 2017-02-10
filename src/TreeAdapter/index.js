@@ -28,8 +28,13 @@ IdomHbsTreeAdapter.isMustacheNode = function(node) {
 
 IdomHbsTreeAdapter.isMustacheTextNode = function(node) {
   return (node.hasOwnProperty("mustache") &&
-          node.mustache.type     === TMUSTACHE.TAG &&
-          node.mustache.location === 'body');
+          node.mustache.location === 'body' &&
+          (node.mustache.type === TMUSTACHE.TAG));
+/*
+  ||
+  node.mustache.type === TMUSTACHE.HELPER ||
+  node.mustache.type === TMUSTACHE.PARTIAL
+ */
 }
 
 IdomHbsTreeAdapter.getMustachePath = function(node) {

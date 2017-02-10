@@ -1,73 +1,73 @@
 var idom = require('incremental-dom');
 var isPatching = false;
 
-function getContext(data, _parent, index, last) {
-  var prnt   = _parent || {};
-  var dta    = data || {};
-  var result = {
-    "id":      dta.id,
-    "root":    prnt.root  || dta, 
-    "data":    data,      // Allow this to be undefined
-    "_parent": _parent    || null, 
-    "_body":   prnt._body || null
-  };
+// function getContext(data, _parent, index, last) {
+//   var prnt   = _parent || {};
+//   var dta    = data || {};
+//   var result = {
+//     "id":      dta.id,
+//     "root":    prnt.root  || dta, 
+//     "data":    data,      // Allow this to be undefined
+//     "_parent": _parent    || null, 
+//     "_body":   prnt._body || null
+//   };
 
-  if (index !== undefined) {
-    result["key"] = result["index"] = index;
+//   if (index !== undefined) {
+//     result["key"] = result["index"] = index;
 
-    if (last !== undefined) {
-      result["first"] = index === 0;
-      result["last"]  = index === last;
-    }
-  }
+//     if (last !== undefined) {
+//       result["first"] = index === 0;
+//       result["last"]  = index === last;
+//     }
+//   }
 
-  return result;
-}
+//   return result;
+// }
 
-function get(path, context, defaultValue) {
-  var val, key, i, l, result = context;
-  for (i = 0, l = path.length; i < l; ++i) {
-    if (result.data === undefined) {
-      break;
-    }
-    key = path[i];
-    switch (key) {
-      case "@root":
-        result = { "data":result.root, "root":result.root };
-        break;
-      case "@parent":
-        result  = result._parent;
-        break;
-      case "@props":
-        result  = result._props;
-        break;
-      case "@this":
-        // Nothing to do
-        break;
-      case "@key":
-        result = getContext(result.key, result);
-        break;
-      case "@index":
-        result = getContext(result.index, result);
-        break;
-      case "@first":
-        result = getContext(result.first, result);
-        break;
-      case "@last":
-        result = getContext(result.last, result);
-        break;
-      default:
-        result = getContext(result.data[key], result);
-        break;
-    }
-  }
+// function get(path, context, defaultValue) {
+//   var val, key, i, l, result = context;
+//   for (i = 0, l = path.length; i < l; ++i) {
+//     if (result.data === undefined) {
+//       break;
+//     }
+//     key = path[i];
+//     switch (key) {
+//       case "@root":
+//         result = { "data":result.root, "root":result.root };
+//         break;
+//       case "@parent":
+//         result  = result._parent;
+//         break;
+//       case "@props":
+//         result  = result._props;
+//         break;
+//       case "@this":
+//         // Nothing to do
+//         break;
+//       case "@key":
+//         result = getContext(result.key, result);
+//         break;
+//       case "@index":
+//         result = getContext(result.index, result);
+//         break;
+//       case "@first":
+//         result = getContext(result.first, result);
+//         break;
+//       case "@last":
+//         result = getContext(result.last, result);
+//         break;
+//       default:
+//         result = getContext(result.data[key], result);
+//         break;
+//     }
+//   }
 
-  if (typeof result.data === 'function') {
-    result.data = result.data.bind((result._parent || result.root).data);
-  }
+//   if (typeof result.data === 'function') {
+//     result.data = result.data.bind((result._parent || result.root).data);
+//   }
 
-  return result.data !== undefined ? result.data : defaultValue;
-}
+//   return result.data !== undefined ? result.data : defaultValue;
+// }
 
 module.exports = {
   _helpers:    {},
@@ -76,16 +76,36 @@ module.exports = {
   _contexts:   {},
 
   context: function(data, _parent, index, last) {
-    return getContext(data, _parent, index, last);
+    // return getContext(data, _parent, index, last);
+    var prnt   = _parent || {};
+    var dta    = data || {};
+    var result = {
+      "id":      dta.id,
+      "root":    prnt.root  || dta, 
+      "data":    data,      // Allow this to be undefined
+      "_parent": _parent    || null, 
+      "_body":   prnt._body || null
+    };
+
+    if (index !== undefined) {
+      result["key"] = result["index"] = index;
+
+      if (last !== undefined) {
+        result["first"] = index === 0;
+        result["last"]  = index === last;
+      }
+    }
+
+    return result;
   },
 
-  /**
+  /*
    * @return string The data id or the component id, prefixed.
    */
-  id: function(data, prefix) {
-    var id = data.id;
-    return (id !== undefined ? (prefix + ':' + id) : null);
-  },
+  // id: function(data, prefix) {
+  //   var id = data.id;
+  //   return (id !== undefined ? (prefix + ':' + id) : null);
+  // },
 
   // cid: function(data, prefix) {
   //   return data.id !== undefined ? (prefix + ':' + data.id + (data.index !== undefined ? ':' + data.index : '')) : null;
@@ -112,7 +132,7 @@ module.exports = {
     }
   },
 
-  /**
+  /*
    * @index
    * @key
    * @first
@@ -121,14 +141,14 @@ module.exports = {
    * @parent
    * @this
    */
-  get: function(path, context, def) {
-    // Check if is a helper
-    if (path.length === 1 &&
-        this._helpers.hasOwnProperty(path[0])) {
-      return this.helper(path[0], context, [], {});
-    }
-    return get(path, context, (def !== undefined ? def : ""));
-  },
+  // get: function(path, context, def) {
+  //   // Check if is a helper
+  //   if (path.length === 1 &&
+  //       this._helpers.hasOwnProperty(path[0])) {
+  //     return this.helper(path[0], context, [], {});
+  //   }
+  //   return get(path, context, (def !== undefined ? def : ""));
+  // },
 
   helper: function(name, context, values, props, tmpl) {
     var that = this, args = values.slice(); // copy the array

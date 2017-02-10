@@ -83,7 +83,7 @@
 	  }
 
 	  factory = new Function('hbs', 'idom', 
-	    'var parentContext = null;\n' +
+	    src.headers + '\n' + 
 	    'function update(data) {\n'+ 
 	      src.main +
 	    '}\n' +
@@ -1182,73 +1182,73 @@
 	var idom = __webpack_require__(2);
 	var isPatching = false;
 
-	function getContext(data, _parent, index, last) {
-	  var prnt   = _parent || {};
-	  var dta    = data || {};
-	  var result = {
-	    "id":      dta.id,
-	    "root":    prnt.root  || dta, 
-	    "data":    data,      // Allow this to be undefined
-	    "_parent": _parent    || null, 
-	    "_body":   prnt._body || null
-	  };
+	// function getContext(data, _parent, index, last) {
+	//   var prnt   = _parent || {};
+	//   var dta    = data || {};
+	//   var result = {
+	//     "id":      dta.id,
+	//     "root":    prnt.root  || dta, 
+	//     "data":    data,      // Allow this to be undefined
+	//     "_parent": _parent    || null, 
+	//     "_body":   prnt._body || null
+	//   };
 
-	  if (index !== undefined) {
-	    result["key"] = result["index"] = index;
+	//   if (index !== undefined) {
+	//     result["key"] = result["index"] = index;
 
-	    if (last !== undefined) {
-	      result["first"] = index === 0;
-	      result["last"]  = index === last;
-	    }
-	  }
+	//     if (last !== undefined) {
+	//       result["first"] = index === 0;
+	//       result["last"]  = index === last;
+	//     }
+	//   }
 
-	  return result;
-	}
+	//   return result;
+	// }
 
-	function get(path, context, defaultValue) {
-	  var val, key, i, l, result = context;
-	  for (i = 0, l = path.length; i < l; ++i) {
-	    if (result.data === undefined) {
-	      break;
-	    }
-	    key = path[i];
-	    switch (key) {
-	      case "@root":
-	        result = { "data":result.root, "root":result.root };
-	        break;
-	      case "@parent":
-	        result  = result._parent;
-	        break;
-	      case "@props":
-	        result  = result._props;
-	        break;
-	      case "@this":
-	        // Nothing to do
-	        break;
-	      case "@key":
-	        result = getContext(result.key, result);
-	        break;
-	      case "@index":
-	        result = getContext(result.index, result);
-	        break;
-	      case "@first":
-	        result = getContext(result.first, result);
-	        break;
-	      case "@last":
-	        result = getContext(result.last, result);
-	        break;
-	      default:
-	        result = getContext(result.data[key], result);
-	        break;
-	    }
-	  }
+	// function get(path, context, defaultValue) {
+	//   var val, key, i, l, result = context;
+	//   for (i = 0, l = path.length; i < l; ++i) {
+	//     if (result.data === undefined) {
+	//       break;
+	//     }
+	//     key = path[i];
+	//     switch (key) {
+	//       case "@root":
+	//         result = { "data":result.root, "root":result.root };
+	//         break;
+	//       case "@parent":
+	//         result  = result._parent;
+	//         break;
+	//       case "@props":
+	//         result  = result._props;
+	//         break;
+	//       case "@this":
+	//         // Nothing to do
+	//         break;
+	//       case "@key":
+	//         result = getContext(result.key, result);
+	//         break;
+	//       case "@index":
+	//         result = getContext(result.index, result);
+	//         break;
+	//       case "@first":
+	//         result = getContext(result.first, result);
+	//         break;
+	//       case "@last":
+	//         result = getContext(result.last, result);
+	//         break;
+	//       default:
+	//         result = getContext(result.data[key], result);
+	//         break;
+	//     }
+	//   }
 
-	  if (typeof result.data === 'function') {
-	    result.data = result.data.bind((result._parent || result.root).data);
-	  }
+	//   if (typeof result.data === 'function') {
+	//     result.data = result.data.bind((result._parent || result.root).data);
+	//   }
 
-	  return result.data !== undefined ? result.data : defaultValue;
-	}
+	//   return result.data !== undefined ? result.data : defaultValue;
+	// }
 
 	module.exports = {
 	  _helpers:    {},
@@ -1257,16 +1257,36 @@
 	  _contexts:   {},
 
 	  context: function(data, _parent, index, last) {
-	    return getContext(data, _parent, index, last);
+	    // return getContext(data, _parent, index, last);
+	    var prnt   = _parent || {};
+	    var dta    = data || {};
+	    var result = {
+	      "id":      dta.id,
+	      "root":    prnt.root  || dta, 
+	      "data":    data,      // Allow this to be undefined
+	      "_parent": _parent    || null, 
+	      "_body":   prnt._body || null
+	    };
+
+	    if (index !== undefined) {
+	      result["key"] = result["index"] = index;
+
+	      if (last !== undefined) {
+	        result["first"] = index === 0;
+	        result["last"]  = index === last;
+	      }
+	    }
+
+	    return result;
 	  },
 
-	  /**
+	  /*
 	   * @return string The data id or the component id, prefixed.
 	   */
-	  id: function(data, prefix) {
-	    var id = data.id;
-	    return (id !== undefined ? (prefix + ':' + id) : null);
-	  },
+	  // id: function(data, prefix) {
+	  //   var id = data.id;
+	  //   return (id !== undefined ? (prefix + ':' + id) : null);
+	  // },
 
 	  // cid: function(data, prefix) {
 	  //   return data.id !== undefined ? (prefix + ':' + data.id + (data.index !== undefined ? ':' + data.index : '')) : null;
@@ -1293,7 +1313,7 @@
 	    }
 	  },
 
-	  /**
+	  /*
 	   * @index
 	   * @key
 	   * @first
@@ -1302,14 +1322,14 @@
 	   * @parent
 	   * @this
 	   */
-	  get: function(path, context, def) {
-	    // Check if is a helper
-	    if (path.length === 1 &&
-	        this._helpers.hasOwnProperty(path[0])) {
-	      return this.helper(path[0], context, [], {});
-	    }
-	    return get(path, context, (def !== undefined ? def : ""));
-	  },
+	  // get: function(path, context, def) {
+	  //   // Check if is a helper
+	  //   if (path.length === 1 &&
+	  //       this._helpers.hasOwnProperty(path[0])) {
+	  //     return this.helper(path[0], context, [], {});
+	  //   }
+	  //   return get(path, context, (def !== undefined ? def : ""));
+	  // },
 
 	  helper: function(name, context, values, props, tmpl) {
 	    var that = this, args = values.slice(); // copy the array
@@ -1491,6 +1511,7 @@
 	    this.mustacheStack = [];
 	    this.elemCount = 0;
 	    this.components = [];
+	    this.constAttrs = [];
 	    this.location = { line:1, column:1 };
 	};
 
@@ -1509,14 +1530,19 @@
 	  this.srcMapGen = new SourceMap.SourceMapGenerator({ file: this.options.sourceName });
 	  this.location = { line:1, column:1 };
 
-	  this.id = Date.now();
-	  this.elemCount = 0;
+	  this.id = Date.now().toString(36); // Generate a small id
+	  this.elemCount  = 0;
+	  this.constAttrs = [];
 	  this.headers = '';
 	  this.html = 'var val;\n';
 	  this.html += "data = (data && data.root) ? data : { 'id': (data && data.id), 'data': data, 'root': data };\n";
 	  this._serializeChildNodes(childNodes);
-	  
+
 	  var components = _.map(this.components, function(cmp) { return '"' + cmp.id + '": ' + cmp.fn });
+
+	  if (this.constAttrs.length) {
+	    this.headers += 'var attrs = [' + this.constAttrs.join(',') + ']';
+	  }
 
 	  return {
 	    'headers':   this.headers,
@@ -1529,7 +1555,8 @@
 	//Internals
 	Serializer.prototype._getId = function(tn) {
 	  var id = tn + ':' + this.id + ':' + (++this.elemCount);
-	  return 'hbs.id(data, "' + id + '")';
+	  // return 'hbs.id(data, "' + id + '")';
+	  return '(data.id !== undefined ? ("' + id + ':" + data.id) : null)';
 	};
 
 	Serializer.prototype._getComponentId = function(tn) {
@@ -1559,7 +1586,7 @@
 
 
 	Serializer.prototype._serializeChildNodes = function (childNodes) {
-	  var i, l, location, currentNode;
+	  var i, l, location, currentNode, textNodes = [];
 
 	  if (!childNodes) {
 	    return;
@@ -1568,6 +1595,18 @@
 	  for (i = 0, l = childNodes.length; i < l; i++) {
 	    currentNode = childNodes[i];
 	    location = currentNode.__locationInfo || {};
+
+	    // TODO: isMustacheTextHelper
+	    if (this.treeAdapter.isTextNode(currentNode) || 
+	        this.treeAdapter.isMustacheTextNode(currentNode)) {
+	      textNodes.push(currentNode);
+	      continue;
+	    }
+
+	    if (textNodes.length) {
+	      this._serializeTextNodes(textNodes);
+	      textNodes = [];
+	    }
 
 	    if (this.treeAdapter.isMustacheNode(currentNode)) {
 	      this._serializeMustacheTag(currentNode);
@@ -1581,15 +1620,15 @@
 	      this._serializeElement(currentNode);
 	    }
 
-	    else if (this.treeAdapter.isTextNode(currentNode)) {
-	      this._serializeTextNode(currentNode);
-	    }
-
 	    // else if (this.treeAdapter.isCommentNode(currentNode))
 	    //   this._serializeCommentNode(currentNode);
 
 	    // else if (this.treeAdapter.isDocumentTypeNode(currentNode))
 	    //   this._serializeDocumentTypeNode(currentNode);
+	  }
+
+	  if (textNodes.length) {
+	    this._serializeTextNodes(textNodes);
 	  }  
 	};
 
@@ -1686,14 +1725,14 @@
 	    this.html += 'hbs.partial("' + tn + '", data);\n';
 	  }
 
-	  else {
-	    if (node.mustache.location === 'body') {
-	      this.html += 'idom.text(';
+	  else { // TMUSTACHE.TAG
+	    // if (node.mustache.location === 'body') {
+	    //   this.html += 'idom.text(';
+	    //   this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
+	    //   this.html += ');\n';
+	    // } else {
 	      this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
-	      this.html += ');\n';
-	    } else {
-	      this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
-	    }
+	    // }
 	  }
 
 	  childNodesHolder = (tn === $.TEMPLATE && ns === NS.HTML) ? this.treeAdapter.getTemplateContent(node) : node;
@@ -1717,10 +1756,52 @@
 	}
 
 	Serializer.prototype._serializeMustacheExpr = function(path, def) {
-	  //var path = this.treeAdapter.getMustachePath(node);
-	  path = JSON.stringify(path);
-	  def  = def !== undefined ? (', ' + JSON.stringify(def)) : '';
-	  this.html += 'hbs.get(' + path + ', data' + def + ')';
+	  var i, l, key, result;
+	  def = JSON.stringify(def !== undefined ? def : '');
+
+	  for (i = 0, l = path.length; i < l; ++i) {
+	    key = path[i];
+
+	    if (!result) {
+	      result = '(data)';
+	    } else {
+	      result = '(data = ' + result + ')';
+	    }
+
+	    switch  (key) {
+	      case "@root":
+	        result = '({ "data":data.root, "root":data.root })';
+	        break;
+	      case "@parent":
+	      case "@props":
+	        key = key.replace('@', '_');
+	        result = '(' + result + '.' + key + ')';
+	        break;
+	      case "@this":
+	        // Nothing to do
+	        break;
+	      case "@key":
+	      case "@index":
+	      case "@first":
+	      case "@last":
+	        key = key.substr(1);
+	        result = '(' + result + ' != null ? hbs.context(data.' + key + ', data) : data)';
+	        break;
+	      default:
+	        result = '(' + result + '.data != null ? hbs.context(data.data["' + key + '"], data) : data)';
+	        break;
+	    }    
+	  }
+	 
+	  // Check if is a helper
+	  if (path.length === 1) {
+	    key = path[0];
+	    result = '((typeof hbs._helpers["' + key + '"] === "function" ? hbs.helper("' + key + '", data, [], {}) : ' + result + '.data) || ' + def + ')';
+	  } else {
+	    result = '(' + result + '.data || ' + def + ')';
+	  }
+
+	  this.html += result;
 	}
 
 	/**
@@ -1890,13 +1971,31 @@
 	  this.html += 'idom.elementClose("' + tn + '");\n';  
 	}
 
-	Serializer.prototype._serializeTextNode = function (node) {
-	  var text = this._getTextNodeValue(node);
-	  // Ignore single line jumps
-	  if (text == "\n") {
+	Serializer.prototype._serializeTextNodes = function (nodes) {
+	  var i, l, text, texts = [], html = this.html;
+
+	  // In case there is only one static text
+	  if (nodes.length === 1 && 
+	      !this.treeAdapter.isMustacheNode(nodes[0])) {
+	    text = this._getTextNodeValue(nodes[0]);
+	    // Do not collapse white spaces
+	    // if (text.trim().length) {
+	      this.html += 'idom.text(' + JSON.stringify(text) + ');\n'; 
+	    // }
 	    return;
 	  }
-	  this.html += 'idom.text(' + JSON.stringify(text) + ');\n';
+
+	  for (i = 0, l = nodes.length; i < l; ++i) {
+	    if (this.treeAdapter.isMustacheNode(nodes[i])) {
+	      this.html = '';
+	      this._serializeMustacheExpr(nodes[i].mustache.path, nodes[i].mustache.special);
+	      texts.push(this.html);
+	    } else {
+	      texts.push(JSON.stringify(this._getTextNodeValue(nodes[i])));
+	    }
+	  }
+
+	  this.html = html + 'idom.text(' + texts.join(' + ') + ');\n';  
 	};
 
 	Serializer.prototype._groupAttrsByType = function(attrs) {
@@ -1909,7 +2008,7 @@
 	      continue;
 	    }
 
-	    vals = attrs[i].dynamicValues;
+	    vals = attrs[i].dynamicValues || [];
 
 	    if (attrs[i].value !== "" || vals.length === 0) {
 	      staticAttrs.push(attrs[i]);
@@ -2299,7 +2398,9 @@
 	  }
 
 	  if (res.length) {
-	    this.html += '["' + res.join('","') + '"]';
+	    i = this.constAttrs.length;
+	    this.constAttrs.push('["' + res.join('","') + '"]');
+	    this.html += 'attrs[' + i + ']';
 	  } else {
 	    this.html += 'null';
 	  }
@@ -16540,7 +16641,8 @@
 
 	'use strict';
 
-	var BaseTreeAdapter = __webpack_require__(16);
+	var BaseTreeAdapter = __webpack_require__(16),
+	    TMUSTACHE       = __webpack_require__(53);
 
 	/**
 	 * Custom TreeAdapter.
@@ -16563,6 +16665,17 @@
 
 	IdomHbsTreeAdapter.isMustacheNode = function(node) {
 	  return node.hasOwnProperty("mustache");
+	}
+
+	IdomHbsTreeAdapter.isMustacheTextNode = function(node) {
+	  return (node.hasOwnProperty("mustache") &&
+	          node.mustache.location === 'body' &&
+	          (node.mustache.type === TMUSTACHE.TAG));
+	/*
+	  ||
+	  node.mustache.type === TMUSTACHE.HELPER ||
+	  node.mustache.type === TMUSTACHE.PARTIAL
+	 */
 	}
 
 	IdomHbsTreeAdapter.getMustachePath = function(node) {
@@ -36373,7 +36486,7 @@
 	  },
 
 	  _processToken: function(token) {
-	    if (this.insertionMode === 'IN_BODY_MODE' && token.mustache) {
+	    if (/*this.insertionMode === 'IN_BODY_MODE' &&*/ token.mustache) {
 	      this._insertMustache(token, NS.HTML);
 	    } else {
 	      BaseParser.prototype._processToken.call(this, token);

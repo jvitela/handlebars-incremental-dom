@@ -31,7 +31,7 @@ function compile (template, opts) {
   }
 
   factory = new Function('hbs', 'idom', 
-    'var parentContext = null;\n' +
+    src.headers + '\n' + 
     'function update(data) {\n'+ 
       src.main +
     '}\n' +

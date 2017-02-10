@@ -44,6 +44,7 @@ var Serializer = module.exports = function (node, options) {
     this.mustacheStack = [];
     this.elemCount = 0;
     this.components = [];
+    this.constAttrs = [];
     this.location = { line:1, column:1 };
 };
 
@@ -62,14 +63,19 @@ Serializer.prototype.serialize = function () {
   this.srcMapGen = new SourceMap.SourceMapGenerator({ file: this.options.sourceName });
   this.location = { line:1, column:1 };
 
-  this.id = Date.now();
-  this.elemCount = 0;
+  this.id = Date.now().toString(36); // Generate a small id
+  this.elemCount  = 0;
+  this.constAttrs = [];
   this.headers = '';
   this.html = 'var val;\n';
   this.html += "data = (data && data.root) ? data : { 'id': (data && data.id), 'data': data, 'root': data };\n";
   this._serializeChildNodes(childNodes);
-  
+
   var components = _.map(this.components, function(cmp) { return '"' + cmp.id + '": ' + cmp.fn });
+
+  if (this.constAttrs.length) {
+    this.headers += 'var attrs = [' + this.constAttrs.join(',') + ']';
+  }
 
   return {
     'headers':   this.headers,
@@ -82,7 +88,8 @@ Serializer.prototype.serialize = function () {
 //Internals
 Serializer.prototype._getId = function(tn) {
   var id = tn + ':' + this.id + ':' + (++this.elemCount);
-  return 'hbs.id(data, "' + id + '")';
+  // return 'hbs.id(data, "' + id + '")';
+  return '(data.id !== undefined ? ("' + id + ':" + data.id) : null)';
 };
 
 Serializer.prototype._getComponentId = function(tn) {
@@ -252,14 +259,13 @@ Serializer.prototype._serializeMustacheTag = function (node) {
   }
 
   else { // TMUSTACHE.TAG
-    if (node.mustache.location === 'body') {
-      // this.html += 'idom.text(';
-      // this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
-      // this.html += ');\n';
-      this.html += '\n // Skipped \n';
-    } else {
+    // if (node.mustache.location === 'body') {
+    //   this.html += 'idom.text(';
+    //   this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
+    //   this.html += ');\n';
+    // } else {
       this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
-    }
+    // }
   }
 
   childNodesHolder = (tn === $.TEMPLATE && ns === NS.HTML) ? this.treeAdapter.getTemplateContent(node) : node;
@@ -283,10 +289,52 @@ Serializer.prototype._serializeMustacheTag = function (node) {
 }
 
 Serializer.prototype._serializeMustacheExpr = function(path, def) {
-  //var path = this.treeAdapter.getMustachePath(node);
-  path = JSON.stringify(path);
-  def  = def !== undefined ? (', ' + JSON.stringify(def)) : '';
-  this.html += 'hbs.get(' + path + ', data' + def + ')';
+  var i, l, key, result;
+  def = JSON.stringify(def !== undefined ? def : '');
+
+  for (i = 0, l = path.length; i < l; ++i) {
+    key = path[i];
+
+    if (!result) {
+      result = '(data)';
+    } else {
+      result = '(data = ' + result + ')';
+    }
+
+    switch  (key) {
+      case "@root":
+        result = '({ "data":data.root, "root":data.root })';
+        break;
+      case "@parent":
+      case "@props":
+        key = key.replace('@', '_');
+        result = '(' + result + '.' + key + ')';
+        break;
+      case "@this":
+        // Nothing to do
+        break;
+      case "@key":
+      case "@index":
+      case "@first":
+      case "@last":
+        key = key.substr(1);
+        result = '(' + result + ' != null ? hbs.context(data.' + key + ', data) : data)';
+        break;
+      default:
+        result = '(' + result + '.data != null ? hbs.context(data.data["' + key + '"], data) : data)';
+        break;
+    }    
+  }
+ 
+  // Check if is a helper
+  if (path.length === 1) {
+    key = path[0];
+    result = '((typeof hbs._helpers["' + key + '"] === "function" ? hbs.helper("' + key + '", data, [], {}) : ' + result + '.data) || ' + def + ')';
+  } else {
+    result = '(' + result + '.data || ' + def + ')';
+  }
+
+  this.html += result;
 }
 
 /**
@@ -463,9 +511,10 @@ Serializer.prototype._serializeTextNodes = function (nodes) {
   if (nodes.length === 1 && 
       !this.treeAdapter.isMustacheNode(nodes[0])) {
     text = this._getTextNodeValue(nodes[0]);
-    if (text.trim().length) {
+    // Do not collapse white spaces
+    // if (text.trim().length) {
       this.html += 'idom.text(' + JSON.stringify(text) + ');\n'; 
-    }
+    // }
     return;
   }
 
@@ -882,7 +931,9 @@ Serializer.prototype._serializeConstAttributes = function (attrs) {
   }
 
   if (res.length) {
-    this.html += '["' + res.join('","') + '"]';
+    i = this.constAttrs.length;
+    this.constAttrs.push('["' + res.join('","') + '"]');
+    this.html += 'attrs[' + i + ']';
   } else {
     this.html += 'null';
   }
