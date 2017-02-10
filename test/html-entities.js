@@ -22,8 +22,8 @@
     // This is sort of a special cases where 
     // the browser actually returns the entity instead of the character
  
-    result = renderToString(hbs, '&nbsp;', {});
-    assert.equal(result, '&nbsp;', '&nbsp;'); 
+    result = renderToString(hbs, '-&nbsp;-', {});
+    assert.equal(result, '-&nbsp;-', '&nbsp;'); 
 
     result = renderToString(hbs, '&lt;', {});
     assert.equal(result, '&lt;', '&lt;');

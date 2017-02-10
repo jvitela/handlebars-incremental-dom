@@ -1,6 +1,7 @@
 'use strict';
 
-var BaseTreeAdapter = require('parse5/lib/tree_adapters/default');
+var BaseTreeAdapter = require('parse5/lib/tree_adapters/default'),
+    TMUSTACHE       = require('../Util/mustache-types');
 
 /**
  * Custom TreeAdapter.
@@ -23,6 +24,12 @@ IdomHbsTreeAdapter.createMustache = function(tagName, attrs, namespaceURI, selfC
 
 IdomHbsTreeAdapter.isMustacheNode = function(node) {
   return node.hasOwnProperty("mustache");
+}
+
+IdomHbsTreeAdapter.isMustacheTextNode = function(node) {
+  return (node.hasOwnProperty("mustache") &&
+          node.mustache.type     === TMUSTACHE.TAG &&
+          node.mustache.location === 'body');
 }
 
 IdomHbsTreeAdapter.getMustachePath = function(node) {

@@ -112,7 +112,7 @@ Serializer.prototype._buildParsingError = function(msg, token) {
 
 
 Serializer.prototype._serializeChildNodes = function (childNodes) {
-  var i, l, location, currentNode;
+  var i, l, location, currentNode, textNodes = [];
 
   if (!childNodes) {
     return;
@@ -121,6 +121,18 @@ Serializer.prototype._serializeChildNodes = function (childNodes) {
   for (i = 0, l = childNodes.length; i < l; i++) {
     currentNode = childNodes[i];
     location = currentNode.__locationInfo || {};
+
+    // TODO: isMustacheTextHelper
+    if (this.treeAdapter.isTextNode(currentNode) || 
+        this.treeAdapter.isMustacheTextNode(currentNode)) {
+      textNodes.push(currentNode);
+      continue;
+    }
+
+    if (textNodes.length) {
+      this._serializeTextNodes(textNodes);
+      textNodes = [];
+    }
 
     if (this.treeAdapter.isMustacheNode(currentNode)) {
       this._serializeMustacheTag(currentNode);
@@ -134,15 +146,15 @@ Serializer.prototype._serializeChildNodes = function (childNodes) {
       this._serializeElement(currentNode);
     }
 
-    else if (this.treeAdapter.isTextNode(currentNode)) {
-      this._serializeTextNode(currentNode);
-    }
-
     // else if (this.treeAdapter.isCommentNode(currentNode))
     //   this._serializeCommentNode(currentNode);
 
     // else if (this.treeAdapter.isDocumentTypeNode(currentNode))
     //   this._serializeDocumentTypeNode(currentNode);
+  }
+
+  if (textNodes.length) {
+    this._serializeTextNodes(textNodes);
   }  
 };
 
@@ -239,11 +251,12 @@ Serializer.prototype._serializeMustacheTag = function (node) {
     this.html += 'hbs.partial("' + tn + '", data);\n';
   }
 
-  else {
+  else { // TMUSTACHE.TAG
     if (node.mustache.location === 'body') {
-      this.html += 'idom.text(';
-      this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
-      this.html += ');\n';
+      // this.html += 'idom.text(';
+      // this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
+      // this.html += ');\n';
+      this.html += '\n // Skipped \n';
     } else {
       this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
     }
@@ -443,13 +456,30 @@ Serializer.prototype._serializeBlockElement = function(node, tn, ns, attrs) {
   this.html += 'idom.elementClose("' + tn + '");\n';  
 }
 
-Serializer.prototype._serializeTextNode = function (node) {
-  var text = this._getTextNodeValue(node);
-  // Ignore single line jumps
-  if (text == "\n") {
+Serializer.prototype._serializeTextNodes = function (nodes) {
+  var i, l, text, texts = [], html = this.html;
+
+  // In case there is only one static text
+  if (nodes.length === 1 && 
+      !this.treeAdapter.isMustacheNode(nodes[0])) {
+    text = this._getTextNodeValue(nodes[0]);
+    if (text.trim().length) {
+      this.html += 'idom.text(' + JSON.stringify(text) + ');\n'; 
+    }
     return;
   }
-  this.html += 'idom.text(' + JSON.stringify(text) + ');\n';
+
+  for (i = 0, l = nodes.length; i < l; ++i) {
+    if (this.treeAdapter.isMustacheNode(nodes[i])) {
+      this.html = '';
+      this._serializeMustacheExpr(nodes[i].mustache.path, nodes[i].mustache.special);
+      texts.push(this.html);
+    } else {
+      texts.push(JSON.stringify(this._getTextNodeValue(nodes[i])));
+    }
+  }
+
+  this.html = html + 'idom.text(' + texts.join(' + ') + ');\n';  
 };
 
 Serializer.prototype._groupAttrsByType = function(attrs) {

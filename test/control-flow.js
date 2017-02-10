@@ -138,7 +138,7 @@
   });
 
   QUnit.test('each', function(assert) {
-    var template, data;
+    var template, data, result;
     //assert.expect(1);
 
     template = '{{#each items}}{{val}}{{/each}}';
@@ -161,7 +161,16 @@
     data     = {'msg':'lorem', 'items':[1,2,3,4]};
     assert.equal('0:lorem1:lorem2:lorem3:lorem', renderToString(hbs, template, data), template);
 
-    template = '{{#each projects}}{{#each issues}} {{@root.title}}.{{@../index}}.{{@index}}.{{title}} {{/each}}{{/each}}';
+    template = ''+
+        '{{#each projects}}'+
+        '<ul>'+
+            '{{#each issues}}'+
+            '<li>'+
+                '{{@root.title}} &nbsp; {{@../index}}&nbsp;{{@index}} {{title}}'+
+            '</li>'+
+            '{{/each}}'+
+        '</ul>'+
+        '{{/each}}';
     data     = {
       'title':'Issues',
       'projects':[{
@@ -178,7 +187,25 @@
         }]
       }]
     };
-    assert.equal(' Issues.0.0.one  Issues.0.1.two  Issues.1.0.uno  Issues.1.1.dos ', renderToString(hbs, template, data), template);
+    result   = renderToString(hbs, template, data);
+    expected = '' + 
+        '<ul>'+
+            '<li>'+
+            'Issues &nbsp; 0&nbsp;0 one'+
+            '</li>'+
+            '<li>'+
+            'Issues &nbsp; 0&nbsp;1 two'+
+            '</li>'+
+        '</ul>' +
+        '<ul>'+
+            '<li>'+
+            'Issues &nbsp; 1&nbsp;0 uno'+
+            '</li>'+
+            '<li>'+
+            'Issues &nbsp; 1&nbsp;1 dos'+
+            '</li>'+
+        '</ul>';
+    assert.equal(result, expected, template);
   });
 
 })(window.QUnit);  
