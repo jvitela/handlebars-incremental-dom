@@ -143,23 +143,23 @@
 
     template = '{{#each items}}{{val}}{{/each}}';
     data     = {'items':[{val:1},{val:2},{val:3}]};
-    assert.equal('123', renderToString(hbs, template, data), template);
+    assert.equal(renderToString(hbs, template, data), '123', template);
 
     template = '{{#each items}}{{this}}{{/each}}';
     data     = {'items':[1,2,3,4,5]};
-    assert.equal('12345', renderToString(hbs, template, data), template);
+    assert.equal(renderToString(hbs, template, data), '12345', template);
 
     template = '{{#each items}}{{.}}{{/each}}';
     data     = {'items':[1,2,3,4,5]};
-    assert.equal('12345', renderToString(hbs, template, data), template);
+    assert.equal(renderToString(hbs, template, data), '12345', template);
 
     template = '{{#each items}}{{@index}}{{/each}}';
     data     = {'items':[1,2,3,4,5]};
-    assert.equal('01234', renderToString(hbs, template, data), template);
+    assert.equal(renderToString(hbs, template, data), '01234', template);
 
     template = '{{#each items}}{{@index}}:{{../msg}}{{/each}}';
     data     = {'msg':'lorem', 'items':[1,2,3,4]};
-    assert.equal('0:lorem1:lorem2:lorem3:lorem', renderToString(hbs, template, data), template);
+    assert.equal(renderToString(hbs, template, data), '0:lorem1:lorem2:lorem3:lorem', template);
 
     template = ''+
         '{{#each projects}}'+

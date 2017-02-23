@@ -81,7 +81,7 @@ module.exports = {
     var dta    = data || {};
     var result = {
       "id":      dta.id,
-      "root":    prnt.root  || dta, 
+      "root":    prnt.root  || {data: data}, 
       "data":    data,      // Allow this to be undefined
       "_parent": _parent    || null, 
       "_body":   prnt._body || null
@@ -172,15 +172,14 @@ module.exports = {
     }
   },
 
-  block: function(context, path, vals, hash, tmpl) {
-    var items, i, l;
-
-    if (path.length === 1 &&
-        this._helpers.hasOwnProperty(path[0])) {
-      return this.helper(path[0], context, [], {}, tmpl);
+  block: function(context, items, vals, hash, tmpl) {
+    var i, l;
+    
+    if (typeof items === "function") {
+      items = items(context, tmpl);
     }
 
-    items = this.get(path, context, null);
+    // items = this.get(path, context, null);
     if (Array.isArray(items)) {
       this.each(context, items, tmpl);
     }

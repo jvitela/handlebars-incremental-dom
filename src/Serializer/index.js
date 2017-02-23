@@ -67,8 +67,8 @@ Serializer.prototype.serialize = function () {
   this.elemCount  = 0;
   this.constAttrs = [];
   this.headers = '';
-  this.html = 'var val;\n';
-  this.html += "data = (data && data.root) ? data : { 'id': (data && data.id), 'data': data, 'root': data };\n";
+  this.html = 'var val, stack1, context;\n';
+  this.html += "context = (data && data.root) ? data : { 'id': (data && data.id), 'data': data, 'root': {data:data} };\n";
   this._serializeChildNodes(childNodes);
 
   var components = _.map(this.components, function(cmp) { return '"' + cmp.id + '": ' + cmp.fn });
@@ -88,8 +88,8 @@ Serializer.prototype.serialize = function () {
 //Internals
 Serializer.prototype._getId = function(tn) {
   var id = tn + ':' + this.id + ':' + (++this.elemCount);
-  // return 'hbs.id(data, "' + id + '")';
-  return '(data.id !== undefined ? ("' + id + ':" + data.id) : null)';
+  // return 'hbs.id(context, "' + id + '")';
+  return '(context.id !== undefined ? ("' + id + ':" + context.id) : null)';
 };
 
 Serializer.prototype._getComponentId = function(tn) {
@@ -97,12 +97,12 @@ Serializer.prototype._getComponentId = function(tn) {
 }
 
 // Serializer.prototype._getComponentInstanceId = function(tn, cid) {
-//   return 'hbs.cid(data, "' + cid + '")';
+//   return 'hbs.cid(context, "' + cid + '")';
 // }
 
 Serializer.prototype._addComponentContentTemplate = function(id, childNodes) {
   var html  = this.html;
-  this.html = 'function(data) {\n';
+  this.html = 'function(context) {\n';
   this._serializeChildNodes(childNodes);
   this.html += '}';
   this.components.push({ id:id, fn:this.html });
@@ -190,7 +190,7 @@ Serializer.prototype._serializeMustacheTag = function (node) {
 
   else if (node.mustache.type === TMUSTACHE.HELPER) {
     if (node.mustache.location === 'body') {
-      this.html += 'idom.text(hbs.helper(' + name + ', data, ';
+      this.html += 'idom.text(hbs.helper(' + name + ', context, ';
       this._serializeMustacheAttrs(node);
       this.html += '));\n';
     } 
@@ -207,7 +207,7 @@ Serializer.prototype._serializeMustacheTag = function (node) {
           break;
         default:
           throw this._buildParsingError("Helpers are not allowed inside elements, found helper '" + tn + "'");
-          // this.html += 'hbs.helper(' + name + ', data, ';
+          // this.html += 'hbs.helper(' + name + ', context, ';
           // this._serializeMustacheAttrs(node);
           // this.html += ')';        
           break;
@@ -224,7 +224,7 @@ Serializer.prototype._serializeMustacheTag = function (node) {
           break;
 
         default: 
-          this.html += 'hbs.helper(' + name + ', data, ';
+          this.html += 'hbs.helper(' + name + ', context, ';
           this._serializeMustacheAttrs(node);
           this.html += ')';
           break;        
@@ -255,7 +255,7 @@ Serializer.prototype._serializeMustacheTag = function (node) {
   }
 
   else if (node.mustache.type == TMUSTACHE.PARTIAL) {
-    this.html += 'hbs.partial("' + tn + '", data);\n';
+    this.html += 'hbs.partial("' + tn + '", context);\n';
   }
 
   else { // TMUSTACHE.TAG
@@ -288,53 +288,131 @@ Serializer.prototype._serializeMustacheTag = function (node) {
   }
 }
 
-Serializer.prototype._serializeMustacheExpr = function(path, def) {
-  var i, l, key, result;
-  def = JSON.stringify(def !== undefined ? def : '');
+/*
 
-  for (i = 0, l = path.length; i < l; ++i) {
-    key = path[i];
+    {{lorem.ipsum.dolor}}
+    a0: stack1 = data
+    a1: (a0) != null ? stack1.lorem : stack1
+    a2: stack1 = (a1)
+    b0: (a2) != null ? stack1.ipsum : stack1
+    b1: stack1 = (b0)
+    c0: (b1) != null ? stack1.dolor : stack1
 
-    if (!result) {
-      result = '(data)';
-    } else {
-      result = '(data = ' + result + ')';
+
+    {{../foo.bar}}
+    a0: stack1 = ctx.parent
+    a1: (a0) != null ? stack1.data : stack1
+    b0: stack1 = (a1)
+    b1: (b0) != null ? stack1.foo  : stack1
+    c0: stack1 = (b1)
+    c1: (c0) != null ? stack1.bar : stack1
+
+
+    {{../../foo.bar}}
+    a0: stack1 = ctx.parent
+    a1: (a0) != null ? stack1.parent : stack1
+    b0: stack1 = (a1)
+    b1: (b0) != null ? stack1.data : stack1
+    c0: stack1 = (b1)
+    c1: (c0) != null ? stack1.foo  : stack1
+    d0: stack1 = (c1)
+    d1: (d0) != null ? stack1.bar : stack1
+
+*/
+Serializer.prototype._serializeMustacheExpr = function(path, def, hlprAsFn) {
+  var i = 0, l = path.length, hpr, key, prev, step = false;
+
+  hpr = (l === 1 && path[0][0] !== '@') ? path[0] : false; // Check for helper
+  def = JSON.stringify(def !== undefined ? def : '');                // fallback value
+
+  // Search where the context should change to data
+  while (i < l && path[i][0]==='@') { 
+    if (path[i] == '@this') {
+      i = l;
+      break;
     }
+    ++i;
+  }
+  // and insert an special @data step into the path
+  if (i < l) {
+    path.splice(i, 0, '@data');
+    ++l;
+  }
+
+  // Iterate the path
+  for (i = 0; i < l; ++i) {
+    key  = path[i];
+    prev = step;
 
     switch  (key) {
+      case "@this":
+      case "@data":
+        step = '.data';
+        break;
       case "@root":
-        result = '({ "data":data.root, "root":data.root })';
+        step = '.root';
         break;
       case "@parent":
+        step = '._parent';
+        break;
       case "@props":
-        key = key.replace('@', '_');
-        result = '(' + result + '.' + key + ')';
+        step = '._props';
         break;
-      case "@this":
-        // Nothing to do
-        break;
+      // case "@this":
+      //   step = false;
+      //   continue;
       case "@key":
+        step = '.key';
+        break;
       case "@index":
+        step = '.index';
+        break;
       case "@first":
+        step = '.first';
+        break;
       case "@last":
-        key = key.substr(1);
-        result = '(' + result + ' != null ? hbs.context(data.' + key + ', data) : data)';
+        step = '.last';
         break;
       default:
-        result = '(' + result + '.data != null ? hbs.context(data.data["' + key + '"], data) : data)';
+        step = '[' + JSON.stringify(key) + ']';
         break;
-    }    
-  }
- 
-  // Check if is a helper
-  if (path.length === 1) {
-    key = path[0];
-    result = '((typeof hbs._helpers["' + key + '"] === "function" ? hbs.helper("' + key + '", data, [], {}) : ' + result + '.data) || ' + def + ')';
-  } else {
-    result = '(' + result + '.data || ' + def + ')';
+    }
+    // Add the result
+    if (prev === false) {
+      step = 'stack1 = context' + step;
+    } else {
+    //   step = 'stack1' + step;
+    // }
+    // // If there was a prev step
+    // if (prev !== false) {
+      step = '(' + prev + ') != null ? stack1' + step + ' : stack1';
+    }
+    // if there is a next step
+    if ((i+1) < l) {
+      step = 'stack1 = (' + step + ')';
+    }
   }
 
-  this.html += result;
+  step = '(stack1 = (' + step + ')) !== undefined ? stack1 : ' + def;
+
+  // Check if the expression is a helper
+  if (hpr !== false) {
+    hpr  = JSON.stringify(hpr);
+
+    // Special case where we need to delay the execution of the helper
+    if (hlprAsFn === true) {
+      step = 'typeof hbs._helpers[' + hpr + '] === "function" ? ' +
+             '(function(context, tmpl) { hbs.helper(' + hpr + ', context, [], {}, tmpl) }) : ' +
+             '(' + step + ')';
+    }
+    else {
+      step = 'typeof hbs._helpers[' + hpr + '] === "function" ? ' +
+             'hbs.helper(' + hpr + ', context, [], {}) : ' +
+             '(' + step + ')';
+    }
+  }
+
+  this.html += '(' + step + ')';
 }
 
 /**
@@ -372,7 +450,7 @@ Serializer.prototype._serializeWebComponent = function (node) {
   }
 
   // ' + this._getComponentInstanceId(tn, cid) + '
-  this.html += 'hbs.component(val, "' + tn + '", "' + cid + '", data, {\n';
+  this.html += 'hbs.component(val, "' + tn + '", "' + cid + '", context, {\n';
   // this.html += '"id": (data && data.id),\n';
   this._serializeComponentAttributes(attrs);
   this.html += '});\n';
@@ -832,14 +910,14 @@ Serializer.prototype._serializeMustacheBlock = function(tn, node) {
 
       attr = _.first(node.attrs);
       namePath = attr.namePath;
-      this.html += 'hbs.each(data, ';
+      this.html += 'hbs.each(context, ';
 
       if (attr.nameType !== Object) {
         throw this._buildParsingError("Found non mustache expression '" + namePath.join('.') + "' after #each block");
       }
 
       this._serializeMustacheExpr(namePath);
-      this.html += ', function(data) {\n';
+      this.html += ', function(context) {\n';
       break;
 
     default:
@@ -858,15 +936,16 @@ Serializer.prototype._serializeMustacheBlock = function(tn, node) {
         // }
       }
       else if (!node.attrs || !node.attrs.length/*node.mustache.type == TMUSTACHE.BLOCK_OPEN*/) {
-        this.html += 'hbs.block(data, ' + JSON.stringify(namePath);
-        //this._serializeMustacheExpr(namePath, null);
+        this.html += 'hbs.block(context, '; // + JSON.stringify(namePath);
+        // TODO: Pass helper as function instead of evaluate
+        this._serializeMustacheExpr(namePath, null, true);
         this.html += ', ';
         this._serializeMustacheAttrs(node);
-        this.html += ', function(data) {\n';
+        this.html += ', function(context) {\n';
       } else {
-        this.html += 'hbs.helper("' + tn + '", data, ';
+        this.html += 'hbs.helper("' + tn + '", context, ';
         this._serializeMustacheAttrs(node);
-        this.html += ', function(data) {\n';        
+        this.html += ', function(context) {\n';        
       }
       break;
   }

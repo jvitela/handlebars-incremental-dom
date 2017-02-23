@@ -85,21 +85,23 @@
     var template, data;
     assert.expect(4);
 
-    hbs.registerHelper('greet-helper', function(opts) { return opts.hash.salutation + ' ' + opts.hash.subject; });
+    hbs.registerHelper('greet-helper', function(opts) { 
+      return opts.hash.salutation + ' ' + opts.hash.subject; 
+    });
     
     template = '{{greet-helper salutation=foo subject=bar}}';
     data     = {'foo':'hello', 'bar':'world'};
-    assert.equal('hello world', renderToString(hbs, template, data), template);    
+    assert.equal(renderToString(hbs, template, data), 'hello world', template);    
 
     template = '{{greet-helper salutation="hola" subject="mundo"}}';
-    assert.equal('hola mundo', renderToString(hbs, template), template);
+    assert.equal(renderToString(hbs, template), 'hola mundo', template);
 
     template = '{{greet-helper salutation=123 subject=456}}';
-    assert.equal('123 456', renderToString(hbs, template), template);
+    assert.equal(renderToString(hbs, template), '123 456', template);
 
     template = '{{greet-helper salutation=[h!] subject=[\\\/\\\/*rLd]}}';
     data     = {'h!': 'hello', '\\\/\\\/*rLd': 'world'};
-    assert.equal('hello world', renderToString(hbs, template, data), template);    
+    assert.equal(renderToString(hbs, template, data), 'hello world', template);    
   });
 
   QUnit.test('hash argument types', function(assert) {
