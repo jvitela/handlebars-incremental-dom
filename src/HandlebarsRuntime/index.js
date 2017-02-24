@@ -152,6 +152,9 @@ module.exports = {
 
   helper: function(name, context, values, props, tmpl) {
     var that = this, args = values.slice(); // copy the array
+    if (!this._helpers[name]) {
+      throw Error("Helper '" + name + "' is not defined");
+    }
     args.push({
       name: name,
       hash: props,
