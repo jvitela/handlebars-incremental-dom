@@ -96,10 +96,6 @@ Serializer.prototype._getComponentId = function(tn) {
   return  (tn + ':' + this.id + ':' + (this.components.length + 1));
 }
 
-// Serializer.prototype._getComponentInstanceId = function(tn, cid) {
-//   return 'hbs.cid(context, "' + cid + '")';
-// }
-
 Serializer.prototype._addComponentContentTemplate = function(id, childNodes) {
   var html  = this.html;
   this.html = 'function(context) {\n';
@@ -152,12 +148,6 @@ Serializer.prototype._serializeChildNodes = function (childNodes) {
     else if (this.treeAdapter.isElementNode(currentNode)) {
       this._serializeElement(currentNode);
     }
-
-    // else if (this.treeAdapter.isCommentNode(currentNode))
-    //   this._serializeCommentNode(currentNode);
-
-    // else if (this.treeAdapter.isDocumentTypeNode(currentNode))
-    //   this._serializeDocumentTypeNode(currentNode);
   }
 
   if (textNodes.length) {
@@ -180,12 +170,7 @@ Serializer.prototype._serializeMustacheTag = function (node) {
     if (lastTag && lastTag.tn !== 'if' && lastTag.tn !== 'unless') {
       throw this._buildParsingError("Found 'else' after " + lastTag.tn);
     }
-    // Block tags are only allowed in the body 
-    // if (node.mustache.location === 'body') {
-      this.html += '} else {\n';
-    // } else {
-    //   this.html += ' : ';
-    // }
+    this.html += '} else {\n';
   }
 
   else if (node.mustache.type === TMUSTACHE.HELPER) {
@@ -207,9 +192,6 @@ Serializer.prototype._serializeMustacheTag = function (node) {
           break;
         default:
           throw this._buildParsingError("Helpers are not allowed inside elements, found helper '" + tn + "'");
-          // this.html += 'hbs.helper(' + name + ', context, ';
-          // this._serializeMustacheAttrs(node);
-          // this.html += ')';        
           break;
       }
     }
@@ -239,12 +221,7 @@ Serializer.prototype._serializeMustacheTag = function (node) {
       throw this._buildParsingError("Found closing tag for '" + tn + "' while expecting '" + lastTag.tn + "'");
     }
     if (lastTag.node.mustache.type == TMUSTACHE.BLOCK_INV_OPEN) {
-      // Block tags are allowed only in the body
-      // if (node.mustache.location === 'body') {
-        this.html += '}\n';  
-      // } else {
-      //   this.html += ') : "")';
-      // }
+      this.html += '}\n';  
     }
     else if (node.mustache.location === 'body') {
       this.html += inlineHelpers.indexOf(tn) === -1 ? '});\n' : '}\n';
@@ -259,13 +236,7 @@ Serializer.prototype._serializeMustacheTag = function (node) {
   }
 
   else { // TMUSTACHE.TAG
-    // if (node.mustache.location === 'body') {
-    //   this.html += 'idom.text(';
-    //   this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
-    //   this.html += ');\n';
-    // } else {
-      this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
-    // }
+    this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
   }
 
   childNodesHolder = (tn === $.TEMPLATE && ns === NS.HTML) ? this.treeAdapter.getTemplateContent(node) : node;
@@ -323,7 +294,7 @@ Serializer.prototype._serializeMustacheExpr = function(path, def, hlprAsFn) {
   var i = 0, l = path.length, hpr, key, prev, step = false;
 
   hpr = (l === 1 && path[0][0] !== '@') ? path[0] : false; // Check for helper
-  def = JSON.stringify(def !== undefined ? def : '');                // fallback value
+  def = JSON.stringify(def !== undefined ? def : ''); // fallback value
 
   // Search where the context should change to data
   while (i < l && path[i][0]==='@') { 
@@ -358,9 +329,6 @@ Serializer.prototype._serializeMustacheExpr = function(path, def, hlprAsFn) {
       case "@props":
         step = '._props';
         break;
-      // case "@this":
-      //   step = false;
-      //   continue;
       case "@key":
         step = '.key';
         break;
@@ -381,10 +349,6 @@ Serializer.prototype._serializeMustacheExpr = function(path, def, hlprAsFn) {
     if (prev === false) {
       step = 'stack1 = context' + step;
     } else {
-    //   step = 'stack1' + step;
-    // }
-    // // If there was a prev step
-    // if (prev !== false) {
       step = '(' + prev + ') != null ? stack1' + step + ' : stack1';
     }
     // if there is a next step
@@ -426,32 +390,16 @@ Serializer.prototype._serializeWebComponent = function (node) {
 
   var grpAttrs = this._groupAttrsByType(attrs);
   var cid      = this._getComponentId(tn);
-  // var id       = this._getId(tn);
-
-  // grpAttrs.static.push({ name:'data-' + tn + '-cid', value: cid });
 
   if (this.options.renderComponentWrapper) {
-    // BLOCK elements without dynamic attributes
-    // if (grpAttrs.dynamic.length < 1) {
-      this.html += 'val = idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', ';
-      this._serializeConstAttributes(grpAttrs.static);
-      this.html += ');\n';
-    // }
-    // BLOCK Element with dynamic attributes
-    // else {
-    //   this.html += 'idom.elementOpenStart("' + tn + '", "' + cid + '", ';
-    //   this._serializeConstAttributes(grpAttrs.static);
-    //   this.html += ');\n';
-    //   this._serializeElementDynamicAttrs(grpAttrs.dynamic);
-    //   this.html += 'val = idom.elementOpenEnd("' + tn + '");\n';
-    // }
+    this.html += 'val = idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', ';
+    this._serializeConstAttributes(grpAttrs.static);
+    this.html += ');\n';
   } else {
     this.html += 'val = null;\n';
   }
 
-  // ' + this._getComponentInstanceId(tn, cid) + '
   this.html += 'hbs.component(val, "' + tn + '", "' + cid + '", context, {\n';
-  // this.html += '"id": (data && data.id),\n';
   this._serializeComponentAttributes(attrs);
   this.html += '});\n';
 
@@ -538,12 +486,6 @@ Serializer.prototype._serializeVoidElement = function(node, tn, ns, attrs) {
     this.html += 'idom.elementOpenEnd("' + tn + '");\n';
     this.html += 'idom.elementClose("' + tn + '");\n';
   }
-
-  // var childNodesHolder = tn === $.TEMPLATE && ns === NS.HTML ?
-  //     this.treeAdapter.getTemplateContent(node) :
-  //     node;
-  // var childNodes = this.treeAdapter.getChildNodes(childNodesHolder);    
-  // this._serializeChildNodes(childNodes);
 };
 
 Serializer.prototype._serializeBlockElement = function(node, tn, ns, attrs) {
@@ -729,24 +671,6 @@ Serializer.prototype._serializeMustacheAttrValue = function (attr) {
   }
 };
 
-// Serializer.prototype._serializeMustacheHelperAttr = function(node) {
-//   var i, l, attr, args = [], hash = [];
-  
-//   this._groupMustacheAttrsByType(node.attrs, args, hash);
-
-//   if (args.length > 0) {
-//     throw this._buildParsingError("Mustache helper attr can receive only hash values");
-//   }
-
-//   // Separate arguments and hash values  
-//   for (i = 0, l = hash.length; i < l; ++i) {
-//     attr = hash[i];
-//     this.html += 'idom.attr(' + JSON.stringify(attr.name) + ', ';
-//     this._serializeMustacheAttrValue(attr);
-//     this.html += ')';
-//   }
-// };
-
 Serializer.prototype._serializeMustacheAttrIfHelper = function(node) {
   var i, l, attr, name, args = [], hash = [];
   
@@ -923,21 +847,13 @@ Serializer.prototype._serializeMustacheBlock = function(tn, node) {
     default:
       namePath = node.mustache.path;
       if (node.mustache.type == TMUSTACHE.BLOCK_INV_OPEN) {
-        // Block tags are allowed only in the body
-        // if (node.mustache.location === 'body') {
-          this.html += 'if (!';
-          this._serializeMustacheExpr(namePath, false);
-          this.html += ') {\n';
-        // }
-        // else {
-        //   this.html += '(!';
-        //   this._serializeMustacheExpr(namePath, false);
-        //   this.html += ' ? (\n';          
-        // }
+        this.html += 'if (!';
+        this._serializeMustacheExpr(namePath, false);
+        this.html += ') {\n';
       }
-      else if (!node.attrs || !node.attrs.length/*node.mustache.type == TMUSTACHE.BLOCK_OPEN*/) {
-        this.html += 'hbs.block(context, '; // + JSON.stringify(namePath);
-        // TODO: Pass helper as function instead of evaluate
+      else if (!node.attrs || !node.attrs.length) {
+        this.html += 'hbs.block(context, '; 
+        // Pass helper as function instead of evaluate
         this._serializeMustacheExpr(namePath, null, true);
         this.html += ', ';
         this._serializeMustacheAttrs(node);
@@ -951,7 +867,7 @@ Serializer.prototype._serializeMustacheBlock = function(tn, node) {
   }
 }
 
-// <input value={{val}} {{disabled}}>
+// <input value={{val}} class="one {{disabled}}">
 Serializer.prototype._serializeElementDynamicAttrs = function(attrs) {
   var tagName, i = 0, l = attrs.length, attr;
   for (; i < l; ++i) {
@@ -962,17 +878,8 @@ Serializer.prototype._serializeElementDynamicAttrs = function(attrs) {
         this._serializeMustacheTag(attr);
         this.html += ';\n';
       }
-      // TODO: Decide if this will be supported at all
       else {
         throw this._buildParsingError("The use of mustache tags is not supported inside elements");
-        // tagName = _.last(attr.mustache.path);
-        // if (tagName[0] === "~" || tagName[0] === "@") {
-        //   throw this._buildParsingError("The use of literal or special identifiers is not supported inside elements");
-        // }
-        // tagName = JSON.stringify(tagName);
-        // this.html += 'idom.attr(' + tagName + ', ';
-        // this._serializeMustacheTag(attr);
-        // this.html += ');\n';
       }
     }
     else {
@@ -1043,9 +950,6 @@ Serializer.prototype._serializeComponentAttributes = function (attrs) {
 
     // A mustache inside the element <elem {{tag}} />
     if (attr.hasOwnProperty("mustache")) {
-      // dynamic
-      // this.html += name + ':';
-      // this._serializeMustacheTag(attr);
       throw this._buildParsingError("Components can only have mustaches as attribute values");
     }
 
