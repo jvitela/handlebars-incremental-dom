@@ -531,10 +531,10 @@ Serializer.prototype._serializeTextNodes = function (nodes) {
   if (nodes.length === 1 && 
       !this.treeAdapter.isMustacheNode(nodes[0])) {
     text = this._getTextNodeValue(nodes[0]);
-    // Do not collapse white spaces
-    // if (text.trim().length) {
+    // collapse white spaces
+    if (text.trim().length !== 0 || text.indexOf("\n") === -1) {
       this.html += 'idom.text(' + JSON.stringify(text) + ');\n'; 
-    // }
+    }
     return;
   }
 
@@ -544,7 +544,11 @@ Serializer.prototype._serializeTextNodes = function (nodes) {
       this._serializeMustacheExpr(nodes[i].mustache.path, nodes[i].mustache.special);
       texts.push(this.html);
     } else {
-      texts.push(JSON.stringify(this._getTextNodeValue(nodes[i])));
+      // collapse white spaces
+      text = this._getTextNodeValue(nodes[i]);
+      if (text.trim().length !== 0 || text.indexOf("\n") === -1) {
+        texts.push(JSON.stringify(text));        
+      }
     }
   }
 

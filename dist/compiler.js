@@ -1182,74 +1182,6 @@
 	var idom = __webpack_require__(2);
 	var isPatching = false;
 
-	// function getContext(data, _parent, index, last) {
-	//   var prnt   = _parent || {};
-	//   var dta    = data || {};
-	//   var result = {
-	//     "id":      dta.id,
-	//     "root":    prnt.root  || dta, 
-	//     "data":    data,      // Allow this to be undefined
-	//     "_parent": _parent    || null, 
-	//     "_body":   prnt._body || null
-	//   };
-
-	//   if (index !== undefined) {
-	//     result["key"] = result["index"] = index;
-
-	//     if (last !== undefined) {
-	//       result["first"] = index === 0;
-	//       result["last"]  = index === last;
-	//     }
-	//   }
-
-	//   return result;
-	// }
-
-	// function get(path, context, defaultValue) {
-	//   var val, key, i, l, result = context;
-	//   for (i = 0, l = path.length; i < l; ++i) {
-	//     if (result.data === undefined) {
-	//       break;
-	//     }
-	//     key = path[i];
-	//     switch (key) {
-	//       case "@root":
-	//         result = { "data":result.root, "root":result.root };
-	//         break;
-	//       case "@parent":
-	//         result  = result._parent;
-	//         break;
-	//       case "@props":
-	//         result  = result._props;
-	//         break;
-	//       case "@this":
-	//         // Nothing to do
-	//         break;
-	//       case "@key":
-	//         result = getContext(result.key, result);
-	//         break;
-	//       case "@index":
-	//         result = getContext(result.index, result);
-	//         break;
-	//       case "@first":
-	//         result = getContext(result.first, result);
-	//         break;
-	//       case "@last":
-	//         result = getContext(result.last, result);
-	//         break;
-	//       default:
-	//         result = getContext(result.data[key], result);
-	//         break;
-	//     }
-	//   }
-
-	//   if (typeof result.data === 'function') {
-	//     result.data = result.data.bind((result._parent || result.root).data);
-	//   }
-
-	//   return result.data !== undefined ? result.data : defaultValue;
-	// }
-
 	module.exports = {
 	  _helpers:    {},
 	  _partials:   {},
@@ -1280,18 +1212,6 @@
 	    return result;
 	  },
 
-	  /*
-	   * @return string The data id or the component id, prefixed.
-	   */
-	  // id: function(data, prefix) {
-	  //   var id = data.id;
-	  //   return (id !== undefined ? (prefix + ':' + id) : null);
-	  // },
-
-	  // cid: function(data, prefix) {
-	  //   return data.id !== undefined ? (prefix + ':' + data.id + (data.index !== undefined ? ':' + data.index : '')) : null;
-	  // },
-
 	  patch: function(element, update, data, options) {
 	    var cid, ctx;
 	    options = options || {};
@@ -1313,26 +1233,11 @@
 	    }
 	  },
 
-	  /*
-	   * @index
-	   * @key
-	   * @first
-	   * @last
-	   * @root
-	   * @parent
-	   * @this
-	   */
-	  // get: function(path, context, def) {
-	  //   // Check if is a helper
-	  //   if (path.length === 1 &&
-	  //       this._helpers.hasOwnProperty(path[0])) {
-	  //     return this.helper(path[0], context, [], {});
-	  //   }
-	  //   return get(path, context, (def !== undefined ? def : ""));
-	  // },
-
 	  helper: function(name, context, values, props, tmpl) {
 	    var that = this, args = values.slice(); // copy the array
+	    if (!this._helpers[name]) {
+	      throw Error("Helper '" + name + "' is not defined");
+	    }
 	    args.push({
 	      name: name,
 	      hash: props,
@@ -1390,38 +1295,12 @@
 	  },
 
 	  renderComponent: function(el, tagName, properties, options) {
-	    // var template, options, proxy;
-
-	    // tagName = tagName.toLowerCase();
-	    // options = { '@cid': cid };
-	    // this._contexts[cid] = parentContext;
-
-	    // proxy = this.getComponentProxy(el, tagName, properties, options);
-	    // if (proxy) {
-	    //   proxy.render();
-	    //   return;
-	    // }
-
 	    var template = this._partials[tagName];
 	    if (!template) {
 	      throw Error("Component '" + tagName + "' is not defined");
 	    }
 	    template(el, properties, options);
 	  },
-
-	  /**
-	   * Creates the view controller instance if none exists or returns the current one.
-	   * 
-	   * @param  object el        The DOM Element associated to the view
-	   * @param  string tagName   The registered component tag name
-	   * @param  object props     The properties to set or update into the instance
-	   * @param  object tmplOpts  The config options for the template
-	   * 
-	   * @return object,null  The instance object or null if none
-	   */
-	  // getComponentProxy: function(el, tagName, props, tmplOpts) {
-	  //   return null;
-	  // },
 
 	  partial: function(name, data) {
 	    var context, props;
@@ -1562,10 +1441,6 @@
 	  return  (tn + ':' + this.id + ':' + (this.components.length + 1));
 	}
 
-	// Serializer.prototype._getComponentInstanceId = function(tn, cid) {
-	//   return 'hbs.cid(context, "' + cid + '")';
-	// }
-
 	Serializer.prototype._addComponentContentTemplate = function(id, childNodes) {
 	  var html  = this.html;
 	  this.html = 'function(context) {\n';
@@ -1618,12 +1493,6 @@
 	    else if (this.treeAdapter.isElementNode(currentNode)) {
 	      this._serializeElement(currentNode);
 	    }
-
-	    // else if (this.treeAdapter.isCommentNode(currentNode))
-	    //   this._serializeCommentNode(currentNode);
-
-	    // else if (this.treeAdapter.isDocumentTypeNode(currentNode))
-	    //   this._serializeDocumentTypeNode(currentNode);
 	  }
 
 	  if (textNodes.length) {
@@ -1646,12 +1515,7 @@
 	    if (lastTag && lastTag.tn !== 'if' && lastTag.tn !== 'unless') {
 	      throw this._buildParsingError("Found 'else' after " + lastTag.tn);
 	    }
-	    // Block tags are only allowed in the body 
-	    // if (node.mustache.location === 'body') {
-	      this.html += '} else {\n';
-	    // } else {
-	    //   this.html += ' : ';
-	    // }
+	    this.html += '} else {\n';
 	  }
 
 	  else if (node.mustache.type === TMUSTACHE.HELPER) {
@@ -1673,9 +1537,6 @@
 	          break;
 	        default:
 	          throw this._buildParsingError("Helpers are not allowed inside elements, found helper '" + tn + "'");
-	          // this.html += 'hbs.helper(' + name + ', context, ';
-	          // this._serializeMustacheAttrs(node);
-	          // this.html += ')';        
 	          break;
 	      }
 	    }
@@ -1705,12 +1566,7 @@
 	      throw this._buildParsingError("Found closing tag for '" + tn + "' while expecting '" + lastTag.tn + "'");
 	    }
 	    if (lastTag.node.mustache.type == TMUSTACHE.BLOCK_INV_OPEN) {
-	      // Block tags are allowed only in the body
-	      // if (node.mustache.location === 'body') {
-	        this.html += '}\n';  
-	      // } else {
-	      //   this.html += ') : "")';
-	      // }
+	      this.html += '}\n';  
 	    }
 	    else if (node.mustache.location === 'body') {
 	      this.html += inlineHelpers.indexOf(tn) === -1 ? '});\n' : '}\n';
@@ -1725,13 +1581,7 @@
 	  }
 
 	  else { // TMUSTACHE.TAG
-	    // if (node.mustache.location === 'body') {
-	    //   this.html += 'idom.text(';
-	    //   this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
-	    //   this.html += ');\n';
-	    // } else {
-	      this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
-	    // }
+	    this._serializeMustacheExpr(node.mustache.path, node.mustache.special);
 	  }
 
 	  childNodesHolder = (tn === $.TEMPLATE && ns === NS.HTML) ? this.treeAdapter.getTemplateContent(node) : node;
@@ -1789,7 +1639,7 @@
 	  var i = 0, l = path.length, hpr, key, prev, step = false;
 
 	  hpr = (l === 1 && path[0][0] !== '@') ? path[0] : false; // Check for helper
-	  def = JSON.stringify(def !== undefined ? def : '');                // fallback value
+	  def = JSON.stringify(def !== undefined ? def : ''); // fallback value
 
 	  // Search where the context should change to data
 	  while (i < l && path[i][0]==='@') { 
@@ -1824,9 +1674,6 @@
 	      case "@props":
 	        step = '._props';
 	        break;
-	      // case "@this":
-	      //   step = false;
-	      //   continue;
 	      case "@key":
 	        step = '.key';
 	        break;
@@ -1847,10 +1694,6 @@
 	    if (prev === false) {
 	      step = 'stack1 = context' + step;
 	    } else {
-	    //   step = 'stack1' + step;
-	    // }
-	    // // If there was a prev step
-	    // if (prev !== false) {
 	      step = '(' + prev + ') != null ? stack1' + step + ' : stack1';
 	    }
 	    // if there is a next step
@@ -1892,32 +1735,16 @@
 
 	  var grpAttrs = this._groupAttrsByType(attrs);
 	  var cid      = this._getComponentId(tn);
-	  // var id       = this._getId(tn);
-
-	  // grpAttrs.static.push({ name:'data-' + tn + '-cid', value: cid });
 
 	  if (this.options.renderComponentWrapper) {
-	    // BLOCK elements without dynamic attributes
-	    // if (grpAttrs.dynamic.length < 1) {
-	      this.html += 'val = idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', ';
-	      this._serializeConstAttributes(grpAttrs.static);
-	      this.html += ');\n';
-	    // }
-	    // BLOCK Element with dynamic attributes
-	    // else {
-	    //   this.html += 'idom.elementOpenStart("' + tn + '", "' + cid + '", ';
-	    //   this._serializeConstAttributes(grpAttrs.static);
-	    //   this.html += ');\n';
-	    //   this._serializeElementDynamicAttrs(grpAttrs.dynamic);
-	    //   this.html += 'val = idom.elementOpenEnd("' + tn + '");\n';
-	    // }
+	    this.html += 'val = idom.elementOpen("' + tn + '", ' + this._getId(tn) + ', ';
+	    this._serializeConstAttributes(grpAttrs.static);
+	    this.html += ');\n';
 	  } else {
 	    this.html += 'val = null;\n';
 	  }
 
-	  // ' + this._getComponentInstanceId(tn, cid) + '
 	  this.html += 'hbs.component(val, "' + tn + '", "' + cid + '", context, {\n';
-	  // this.html += '"id": (data && data.id),\n';
 	  this._serializeComponentAttributes(attrs);
 	  this.html += '});\n';
 
@@ -2004,12 +1831,6 @@
 	    this.html += 'idom.elementOpenEnd("' + tn + '");\n';
 	    this.html += 'idom.elementClose("' + tn + '");\n';
 	  }
-
-	  // var childNodesHolder = tn === $.TEMPLATE && ns === NS.HTML ?
-	  //     this.treeAdapter.getTemplateContent(node) :
-	  //     node;
-	  // var childNodes = this.treeAdapter.getChildNodes(childNodesHolder);    
-	  // this._serializeChildNodes(childNodes);
 	};
 
 	Serializer.prototype._serializeBlockElement = function(node, tn, ns, attrs) {
@@ -2055,10 +1876,10 @@
 	  if (nodes.length === 1 && 
 	      !this.treeAdapter.isMustacheNode(nodes[0])) {
 	    text = this._getTextNodeValue(nodes[0]);
-	    // Do not collapse white spaces
-	    // if (text.trim().length) {
+	    // collapse white spaces
+	    if (text.trim().length !== 0 || text.indexOf("\n") === -1) {
 	      this.html += 'idom.text(' + JSON.stringify(text) + ');\n'; 
-	    // }
+	    }
 	    return;
 	  }
 
@@ -2068,7 +1889,11 @@
 	      this._serializeMustacheExpr(nodes[i].mustache.path, nodes[i].mustache.special);
 	      texts.push(this.html);
 	    } else {
-	      texts.push(JSON.stringify(this._getTextNodeValue(nodes[i])));
+	      // collapse white spaces
+	      text = this._getTextNodeValue(nodes[i]);
+	      if (text.trim().length !== 0 || text.indexOf("\n") === -1) {
+	        texts.push(JSON.stringify(text));        
+	      }
 	    }
 	  }
 
@@ -2194,24 +2019,6 @@
 	    this.html += JSON.stringify(attr.value);
 	  }
 	};
-
-	// Serializer.prototype._serializeMustacheHelperAttr = function(node) {
-	//   var i, l, attr, args = [], hash = [];
-	  
-	//   this._groupMustacheAttrsByType(node.attrs, args, hash);
-
-	//   if (args.length > 0) {
-	//     throw this._buildParsingError("Mustache helper attr can receive only hash values");
-	//   }
-
-	//   // Separate arguments and hash values  
-	//   for (i = 0, l = hash.length; i < l; ++i) {
-	//     attr = hash[i];
-	//     this.html += 'idom.attr(' + JSON.stringify(attr.name) + ', ';
-	//     this._serializeMustacheAttrValue(attr);
-	//     this.html += ')';
-	//   }
-	// };
 
 	Serializer.prototype._serializeMustacheAttrIfHelper = function(node) {
 	  var i, l, attr, name, args = [], hash = [];
@@ -2389,21 +2196,13 @@
 	    default:
 	      namePath = node.mustache.path;
 	      if (node.mustache.type == TMUSTACHE.BLOCK_INV_OPEN) {
-	        // Block tags are allowed only in the body
-	        // if (node.mustache.location === 'body') {
-	          this.html += 'if (!';
-	          this._serializeMustacheExpr(namePath, false);
-	          this.html += ') {\n';
-	        // }
-	        // else {
-	        //   this.html += '(!';
-	        //   this._serializeMustacheExpr(namePath, false);
-	        //   this.html += ' ? (\n';          
-	        // }
+	        this.html += 'if (!';
+	        this._serializeMustacheExpr(namePath, false);
+	        this.html += ') {\n';
 	      }
-	      else if (!node.attrs || !node.attrs.length/*node.mustache.type == TMUSTACHE.BLOCK_OPEN*/) {
-	        this.html += 'hbs.block(context, '; // + JSON.stringify(namePath);
-	        // TODO: Pass helper as function instead of evaluate
+	      else if (!node.attrs || !node.attrs.length) {
+	        this.html += 'hbs.block(context, '; 
+	        // Pass helper as function instead of evaluate
 	        this._serializeMustacheExpr(namePath, null, true);
 	        this.html += ', ';
 	        this._serializeMustacheAttrs(node);
@@ -2417,7 +2216,7 @@
 	  }
 	}
 
-	// <input value={{val}} {{disabled}}>
+	// <input value={{val}} class="one {{disabled}}">
 	Serializer.prototype._serializeElementDynamicAttrs = function(attrs) {
 	  var tagName, i = 0, l = attrs.length, attr;
 	  for (; i < l; ++i) {
@@ -2428,17 +2227,8 @@
 	        this._serializeMustacheTag(attr);
 	        this.html += ';\n';
 	      }
-	      // TODO: Decide if this will be supported at all
 	      else {
 	        throw this._buildParsingError("The use of mustache tags is not supported inside elements");
-	        // tagName = _.last(attr.mustache.path);
-	        // if (tagName[0] === "~" || tagName[0] === "@") {
-	        //   throw this._buildParsingError("The use of literal or special identifiers is not supported inside elements");
-	        // }
-	        // tagName = JSON.stringify(tagName);
-	        // this.html += 'idom.attr(' + tagName + ', ';
-	        // this._serializeMustacheTag(attr);
-	        // this.html += ');\n';
 	      }
 	    }
 	    else {
@@ -2509,9 +2299,6 @@
 
 	    // A mustache inside the element <elem {{tag}} />
 	    if (attr.hasOwnProperty("mustache")) {
-	      // dynamic
-	      // this.html += name + ':';
-	      // this._serializeMustacheTag(attr);
 	      throw this._buildParsingError("Components can only have mustaches as attribute values");
 	    }
 
